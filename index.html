@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Control de Cobros</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <section id="pantalla-bloqueo" class="auth-screen" aria-labelledby="titulo-acceso">
+        <div class="auth-card">
+            <div class="auth-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <p class="auth-kicker">Área protegida</p>
+            <h1 id="titulo-acceso">Control de Cobros</h1>
+            <p class="auth-description">Ingresa tu contraseña para continuar con tus registros.</p>
+            <form id="form-acceso" class="auth-form">
+                <label for="contrasena">Contraseña</label>
+                <div class="password-field">
+                    <i class="fa-solid fa-lock"></i>
+                    <input type="password" id="contrasena" autocomplete="current-password" placeholder="Sin no sabe no intente gracias" required>
+                </div>
+                <p id="mensaje-acceso" class="auth-message" role="alert" aria-live="polite"></p>
+                <button type="submit" id="btn-ingresar" class="btn btn-auth">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Ingresar
+                </button>
+            </form>
+            <button type="button" id="btn-olvido-contrasena" class="auth-recovery-link">
+                <i class="fa-solid fa-key"></i> ¿Olvidaste tu contraseña?
+            </button>
+        </div>
+    </section>
+
+    <div id="modal-recuperar-contrasena" class="modal-overlay" hidden>
+        <div class="modal-card auth-recovery-card" role="dialog" aria-modal="true" aria-labelledby="titulo-recuperar-contrasena">
+            <button type="button" id="btn-cerrar-recuperacion" class="modal-close" aria-label="Cerrar recuperación">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="recovery-brand" aria-label="Control de Cobros">
+                <span class="recovery-brand-icon"><i class="fa-solid fa-wallet"></i></span>
+                <span>Control de<br><strong>Cobros</strong></span>
+            </div>
+            <div class="recovery-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <p class="recovery-kicker">Recuperación segura</p>
+            <h2 id="titulo-recuperar-contrasena">Cambiar contraseña</h2>
+            <p class="recovery-description">Confirma tu código especial para crear una nueva contraseña.</p>
+            <form id="form-recuperar-contrasena" class="auth-form">
+                <div class="form-group">
+                    <label for="codigo-recuperacion">Código especial</label>
+                    <div class="password-field">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <input type="password" id="codigo-recuperacion" inputmode="numeric" autocomplete="off" placeholder="Sin no sabe no intente gracias" required>
+                    </div>
+                </div>
+                <div id="campos-nueva-contrasena" hidden>
+                    <div class="form-group">
+                        <label for="nueva-contrasena">Nueva contraseña</label>
+                        <div class="password-field">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="password" id="nueva-contrasena" minlength="4" autocomplete="new-password" placeholder="Sin no sabe no intente gracias">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmar-contrasena">Confirmar contraseña</label>
+                        <div class="password-field">
+                            <i class="fa-solid fa-check-double"></i>
+                            <input type="password" id="confirmar-contrasena" minlength="4" autocomplete="new-password" placeholder="Sin no sabe no intente gracias">
+                        </div>
+                    </div>
+                </div>
+                <p id="mensaje-recuperacion" class="auth-message" role="alert" aria-live="polite"></p>
+                <div class="recovery-actions">
+                    <button type="button" id="btn-cancelar-recuperacion" class="btn btn-cancel">Cancelar</button>
+                    <button type="submit" id="btn-confirmar-recuperacion" class="btn btn-save">
+                        <i class="fa-solid fa-unlock-keyhole"></i> Verificar código
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="contenido-aplicacion" class="main-container" hidden>
+        <header class="app-header">
+            <div class="header-content">
+                <div>
+                    <h1><i class="fa-solid fa-wallet"></i> Control de Cobros y Pendientes</h1>
+                    <p>Gestión financiera diaria en Dólares ($ USD)</p>
+                </div>
+                <button type="button" id="btn-cerrar-sesion" class="btn btn-logout">
+                    <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión
+                </button>
+            </div>
+        </header>
+
+        <!-- Resumen general (Tarjetas) -->
+        <section class="summary-cards">
+            <div class="card card-green">
+                <div class="card-icon"><i class="fa-solid fa-calendar-day"></i></div>
+                <div class="card-info">
+                    <h3 class="resumen-titulo-dia">Cobrado Hoy <span id="cuenta-regresiva-dia" class="cuenta-regresiva-dia" aria-label="Tiempo restante del día">00:00:00</span></h3>
+                    <p id="total-diario">$0.00</p>
+                </div>
+            </div>
+
+            <div class="card card-blue">
+                <div class="card-icon"><i class="fa-solid fa-calendar-week"></i></div>
+                <div class="card-info">
+                    <h3 class="resumen-titulo-dia">Cobrado esta Semana <span id="cuenta-regresiva-semana" class="cuenta-regresiva-dia" aria-label="Tiempo restante de la semana">00:00:00</span></h3>
+                    <p id="total-semanal">$0.00</p>
+                </div>
+            </div>
+
+            <div class="card card-purple">
+                <div class="card-icon"><i class="fa-solid fa-calendar-days"></i></div>
+                <div class="card-info">
+                    <h3 class="resumen-titulo-dia">Cobrado este Mes <span id="cuenta-regresiva-mes" class="cuenta-regresiva-dia" aria-label="Tiempo restante del mes">00:00:00</span></h3>
+                    <p id="total-mensual">$0.00</p>
+                </div>
+            </div>
+
+            <div class="card card-red">
+                <div class="card-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                <div class="card-info">
+                    <h3>Pendiente por Cobrar</h3>
+                    <p id="total-pendiente">$0.00</p>
+                </div>
+            </div>
+
+            <div class="card card-amber">
+                <div class="card-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                <div class="card-info">
+                    <h3>Total que Presté</h3>
+                    <p id="total-prestado">$0.00</p>
+                </div>
+            </div>
+
+            <div class="card card-teal">
+                <div class="card-icon"><i class="fa-solid fa-hand-holding-hand"></i></div>
+                <div class="card-info">
+                    <h3>Total que me Prestaron</h3>
+                    <p id="total-recibido">$0.00</p>
+                </div>
+            </div>
+
+            <div class="card card-slate">
+                <div class="card-icon"><i class="fa-solid fa-credit-card"></i></div>
+                <div class="card-info">
+                    <h3>Monto Total en Tarjetas</h3>
+                    <p id="monto-total-tarjetas-resumen">$0.00</p>
+                </div>
+            </div>
+
+            <div class="card card-gray">
+                <div class="card-icon"><i class="fa-solid fa-coins"></i></div>
+                <div class="card-info">
+                    <h3>Monto Total que Tengo</h3>
+                    <div class="total-privado">
+                        <p id="monto-total-general">$0.00</p>
+                        <button type="button" id="btn-toggle-totales" class="btn-toggle-total" aria-label="Ocultar valores totales" aria-pressed="false" title="Ocultar valores totales">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-cash">
+                <div class="card-icon"><i class="fa-solid fa-money-bill-wave"></i></div>
+                <div class="card-info">
+                    <h3>Efectivo disponible</h3>
+                    <div class="total-privado">
+                        <p id="monto-efectivo">$0.00</p>
+                        <button type="button" id="btn-toggle-efectivo" class="btn-toggle-total" aria-label="Ocultar efectivo disponible" aria-pressed="false" title="Ocultar efectivo disponible">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de Tarjetas Bancarias -->
+        <section class="tarjetas-section">
+            <div class="tarjetas-header">
+                <h2><i class="fa-solid fa-credit-card"></i> Mis Tarjetas Bancarias</h2>
+                <div class="tarjetas-controls">
+                    <div class="total-tarjetas">
+                        <span>Total en Tarjetas:</span>
+                        <div class="total-privado total-privado-tarjetas">
+                            <p id="monto-total-tarjetas">$0.00</p>
+                            <button type="button" id="btn-toggle-total-tarjetas" class="btn-toggle-total" aria-label="Ocultar total en tarjetas" aria-pressed="false" title="Ocultar total en tarjetas">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="button" id="btn-agregar-tarjeta" class="btn btn-primary">
+                        <i class="fa-solid fa-plus"></i> Agregar Tarjeta
+                    </button>
+                </div>
+            </div>
+            <div class="tarjetas-container" id="tarjetas-container">
+                <!-- Las tarjetas se cargarán aquí dinámicamente -->
+            </div>
+        </section>
+
+        <section class="cash-history-section">
+            <div class="cash-history-header">
+                <div>
+                    <p class="section-kicker"><i class="fa-solid fa-arrow-trend-down"></i> Control de salidas</p>
+                    <h2><i class="fa-solid fa-money-bill-transfer"></i> Movimientos de efectivo</h2>
+                </div>
+                <button type="button" id="btn-ver-historial-efectivo" class="btn btn-history btn-history-small">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Ver historial
+                </button>
+            </div>
+            <div id="resumen-historial-efectivo" class="cash-history-list"></div>
+        </section>
+
+        <section class="cash-history-section card-history-section">
+            <div class="cash-history-header">
+                <div>
+                    <p class="section-kicker card-section-kicker"><i class="fa-solid fa-credit-card"></i> Control de salidas</p>
+                    <h2><i class="fa-solid fa-credit-card"></i> Retiros por tarjeta</h2>
+                </div>
+                <button type="button" id="btn-ver-historial-tarjetas" class="btn btn-history btn-history-small">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Ver historial
+                </button>
+            </div>
+            <div id="resumen-historial-tarjetas" class="cash-history-list"></div>
+        </section>
+
+        <!-- Sección de Calendario Semanal -->
+        <section class="calendar-section">
+            <div class="calendar-header">
+                <h2><i class="fa-solid fa-calendar-week"></i> Calendario de Ganancias Semanales</h2>
+                <div class="calendar-header-actions">
+                    <button type="button" id="btn-ver-historial-calendario" class="btn btn-history">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Ver historial de días trabajados
+                    </button>
+                    <button type="button" id="btn-ver-calendario-registros" class="btn btn-history">
+                        <i class="fa-solid fa-calendar-days"></i> Ver calendario de registros
+                    </button>
+                    <button type="button" id="btn-agregar-ganancia-semanal" class="btn btn-primary">
+                        <i class="fa-solid fa-plus"></i> Agregar Ganancia
+                    </button>
+                </div>
+            </div>
+            <div id="tabla-ganancias-semanales" class="ganancias-container">
+                <!-- Los registros semanales se cargarán aquí dinámicamente -->
+            </div>
+        </section>
+
+        <div id="modal-calendario-registros" class="modal-overlay" hidden>
+            <div class="modal-content calendario-registros-card" role="dialog" aria-modal="true" aria-labelledby="titulo-calendario-registros">
+                <div class="modal-header">
+                    <div class="calendario-modal-titulo">
+                        <h2 id="titulo-calendario-registros"><i class="fa-solid fa-calendar-days"></i> Calendario de registros</h2>
+                        <p>Selecciona un día para consultar sus movimientos.</p>
+                    </div>
+                    <button type="button" id="btn-cerrar-calendario-registros" class="btn-cerrar-modal" aria-label="Cerrar calendario">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="calendario-controles">
+                    <button type="button" id="btn-mes-anterior" class="btn btn-history" aria-label="Mes anterior"><i class="fa-solid fa-chevron-left"></i></button>
+                    <strong id="mes-calendario-registros"></strong>
+                    <button type="button" id="btn-mes-siguiente" class="btn btn-history" aria-label="Mes siguiente"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+                <div id="calendario-registros-grid" class="calendario-registros-grid"></div>
+                <div id="detalle-dia-registros" class="detalle-dia-registros">
+                    <h3><i class="fa-solid fa-hand-pointer"></i> Selecciona un día</h3>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-seguridad-calendario" class="modal-overlay" hidden>
+            <div class="modal-card seguridad-calendario-card" role="dialog" aria-modal="true" aria-labelledby="titulo-seguridad-calendario">
+                <div class="seguridad-calendario-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                <p class="seguridad-calendario-kicker">Acción protegida</p>
+                <h2 id="titulo-seguridad-calendario">Confirma tu contraseña</h2>
+                <p>Necesitamos verificar tu identidad antes de realizar esta acción.</p>
+                <form id="form-seguridad-calendario">
+                    <label for="contrasena-calendario">Contraseña actual</label>
+                    <input type="password" id="contrasena-calendario" autocomplete="current-password" placeholder="Sin no sabe no intente gracias" required>
+                    <p id="mensaje-seguridad-calendario" class="auth-message" role="alert"></p>
+                    <div class="modal-actions">
+                        <button type="button" id="btn-cancelar-seguridad-calendario" class="btn btn-cancel">Cancelar</button>
+                        <button type="submit" class="btn btn-save"><i class="fa-solid fa-unlock-keyhole"></i> Continuar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="modal-editar-calendario-visual" class="modal-overlay" hidden>
+            <div class="modal-content modal-tarjeta calendario-edicion-visual-card" role="dialog" aria-modal="true" aria-labelledby="titulo-editar-calendario-visual">
+                <div class="modal-header">
+                    <h2 id="titulo-editar-calendario-visual"><i class="fa-solid fa-pen-to-square"></i> Editar vista del registro</h2>
+                    <button type="button" id="btn-cerrar-editar-calendario-visual" class="btn-cerrar-modal" aria-label="Cerrar edición"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <p class="form-help">Estos cambios son visuales y no modifican el dinero de tarjetas ni efectivo.</p>
+                    <div class="form-group"><label for="input-monto-calendario-visual">Monto visible</label><input type="number" id="input-monto-calendario-visual" min="0" step="0.01"></div>
+                    <div class="form-group"><label for="select-origen-calendario-visual">Tarjeta / origen visible</label><select id="select-origen-calendario-visual"></select></div>
+                    <div class="form-group"><label for="input-descripcion-calendario-visual">Descripción</label><input type="text" id="input-descripcion-calendario-visual"></div>
+                    <div class="form-group"><label for="input-fecha-calendario-visual">Fecha y hora</label><input type="datetime-local" id="input-fecha-calendario-visual"></div>
+                </div>
+                <div class="modal-actions"><button type="button" id="btn-cancelar-editar-calendario-visual" class="btn btn-cancel">Cancelar</button><button type="button" id="btn-guardar-editar-calendario-visual" class="btn btn-save"><i class="fa-solid fa-check"></i> Guardar cambio visual</button></div>
+            </div>
+        </div>
+
+        <!-- Modal para agregar ganancia semanal -->
+        <div id="modal-agregar-ganancia" class="modal-overlay" style="display: none;">
+            <div class="modal-content modal-ganancia">
+                <div class="modal-header">
+                    <h2><i class="fa-solid fa-calendar-plus"></i> Registrar Ganancia Semanal</h2>
+                    <button type="button" class="btn-cerrar-modal" onclick="solicitarCancelarGanancia()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <div class="dias-label-row">
+                            <label>Selecciona los días</label>
+                            <label class="entrelazar-control">
+                                <input type="checkbox" id="checkbox-entrelazar-dias">
+                                <span>Entrelazar días por un precio</span>
+                            </label>
+                        </div>
+                        <p id="ayuda-entrelazar-dias" class="form-help">Activa esta opción para elegir 2 o más días con un solo monto.</p>
+                        <div class="dias-selector">
+                            <label class="dia-checkbox">
+                                <input type="checkbox" value="0" class="checkbox-dia"> Lunes
+                            </label>
+                            <label class="dia-checkbox">
+                                <input type="checkbox" value="1" class="checkbox-dia"> Martes
+                            </label>
+                            <label class="dia-checkbox">
+                                <input type="checkbox" value="2" class="checkbox-dia"> Miércoles
+                            </label>
+                            <label class="dia-checkbox">
+                                <input type="checkbox" value="3" class="checkbox-dia"> Jueves
+                            </label>
+                            <label class="dia-checkbox">
+                                <input type="checkbox" value="4" class="checkbox-dia"> Viernes
+                            </label>
+                            <label class="dia-checkbox">
+                                <input type="checkbox" value="5" class="checkbox-dia"> Sábado
+                            </label>
+                            <label class="dia-checkbox">
+                                <input type="checkbox" value="6" class="checkbox-dia"> Domingo
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="input-monto-ganancia">Monto total ganado ($)</label>
+                        <input type="text" id="input-monto-ganancia" inputmode="decimal" placeholder="Ej. 50.50 o 50,50" required>
+                        <label class="multiples-trabajos-control">
+                            <input type="checkbox" id="checkbox-multiples-trabajos">
+                            <span>Trabajé en más de un lugar o hice más de un trabajo</span>
+                        </label>
+                        <p class="form-help">Puedes escribir una descripción por cada lugar o trabajo. El monto no se duplica.</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="input-descripcion-ganancia">Descripción</label>
+                        <input type="text" id="input-descripcion-ganancia" placeholder="Ej. Ventas, servicios, etc...">
+                        <div id="descripciones-dias" class="descripciones-dias"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="input-estado-ganancia">Estado del Pago</label>
+                        <select id="input-estado-ganancia" required>
+                            <option value="pagado">✅ Pagado</option>
+                            <option value="pendiente">⏳ Pendiente de Cobro</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="input-fecha-ganancia">Fecha y hora</label>
+                        <input type="datetime-local" id="input-fecha-ganancia" required>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-cancel" onclick="solicitarCancelarGanancia()">Cancelar</button>
+                    <button type="button" id="btn-cancelar-edicion-ganancia" class="btn btn-cancel" onclick="solicitarCancelarGanancia()" hidden>Cancelar edición</button>
+                    <button type="button" class="btn btn-save" onclick="guardarGananciaSemanal()">
+                        <i id="icono-guardar-ganancia" class="fa-solid fa-check"></i> <span id="texto-guardar-ganancia">Guardar</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para agregar tarjeta -->
+        <div id="modal-agregar-tarjeta" class="modal-overlay" style="display: none;">
+            <div class="modal-content modal-tarjeta">
+                <div class="modal-header">
+                    <h2><i class="fa-solid fa-credit-card"></i> <span id="titulo-modal-tarjeta">Nueva Tarjeta Bancaria</span></h2>
+                    <button type="button" class="btn-cerrar-modal" onclick="solicitarCancelarTarjeta()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="input-nombre-tarjeta">Nombre de la Tarjeta</label>
+                        <input type="text" id="input-nombre-tarjeta" placeholder="Ej: Tarjeta de Crédito, Efectivo, Cuenta Ahorros...">
+                    </div>
+                    <div class="form-group">
+                        <label for="input-monto-tarjeta">Monto Inicial ($)</label>
+                        <input type="number" id="input-monto-tarjeta" step="0.01" min="0" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="btn-cancelar-edicion-tarjeta" class="btn btn-cancel" onclick="solicitarCancelarTarjeta()" hidden>Cancelar edición</button>
+                    <button type="button" class="btn btn-save" onclick="guardarNuevaTarjeta()">
+                        <i id="icono-guardar-tarjeta" class="fa-solid fa-check"></i> <span id="texto-guardar-tarjeta">Crear Tarjeta</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de detalle y retiros de una tarjeta -->
+        <div id="modal-detalle-tarjeta" class="modal-overlay" style="display: none;">
+            <div class="modal-content modal-tarjeta">
+                <div class="modal-header">
+                    <h2><i class="fa-solid fa-credit-card"></i> <span id="detalle-nombre-tarjeta">Tarjeta</span></h2>
+                    <button type="button" class="btn-cerrar-modal" onclick="cerrarModalDetalleTarjeta()" aria-label="Cerrar detalle de tarjeta">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="tarjeta-detalle-saldo">
+                    <span>Saldo disponible</span>
+                    <strong id="detalle-saldo-tarjeta">$0.00</strong>
+                </div>
+                <div class="modal-body">
+                    <h3 class="historial-titulo"><i class="fa-solid fa-money-bill-transfer"></i> Retirar dinero</h3>
+                    <div class="form-group">
+                        <label for="input-monto-retiro">Monto a retirar ($)</label>
+                        <input type="number" id="input-monto-retiro" step="0.01" min="0.01" placeholder="Ej. 20.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="input-comision-retiro">Comisión cobrada ($)</label>
+                        <input type="number" id="input-comision-retiro" step="0.01" min="0" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="select-tarjeta-retiro">¿De qué tarjeta quieres retirar?</label>
+                        <select id="select-tarjeta-retiro" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="input-fecha-hora-retiro">Fecha y hora</label>
+                        <input type="datetime-local" id="input-fecha-hora-retiro">
+                    </div>
+                    <div class="historial-retiros">
+                        <div class="historial-titulo-row">
+                            <h3 class="historial-titulo"><i class="fa-solid fa-clock-rotate-left"></i> Historial de retiros</h3>
+                            <button type="button" id="btn-ver-historial-retiros" class="btn btn-history btn-history-small">
+                                <i class="fa-solid fa-expand"></i> Ver más
+                            </button>
+                        </div>
+                        <div id="historial-retiros-tarjeta" class="historial-lista"></div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-cancel" onclick="cerrarModalDetalleTarjeta()">Cerrar</button>
+                    <button type="button" id="btn-cancelar-edicion-retiro" class="btn btn-cancel" onclick="cancelarEdicionRetiro()" hidden>Cancelar edición</button>
+                    <button type="button" class="btn btn-save" onclick="guardarRetiroTarjeta()">
+                        <i id="icono-guardar-retiro" class="fa-solid fa-arrow-up-from-bracket"></i> <span id="texto-guardar-retiro">Retirar dinero</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-historial-retiros" class="modal-overlay" hidden>
+            <div class="modal-content historial-modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-historial-retiros">
+                <div class="modal-header">
+                    <h2 id="titulo-historial-retiros"><i class="fa-solid fa-clock-rotate-left"></i> Historial de retiros</h2>
+                    <button type="button" id="btn-cerrar-historial-retiros" class="btn-cerrar-modal" aria-label="Cerrar historial de retiros">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div id="lista-historial-retiros-completo" class="historial-lista historial-lista-completa"></div>
+            </div>
+        </div>
+
+        <div id="modal-historial-retiros-tarjetas" class="modal-overlay" hidden>
+            <div class="modal-content historial-modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-historial-retiros-tarjetas">
+                <div class="modal-header">
+                    <h2 id="titulo-historial-retiros-tarjetas"><i class="fa-solid fa-credit-card"></i> Historial de retiros por tarjeta</h2>
+                    <button type="button" id="btn-cerrar-historial-retiros-tarjetas" class="btn-cerrar-modal" aria-label="Cerrar historial de retiros por tarjeta">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div id="lista-historial-retiros-tarjetas" class="historial-lista historial-lista-completa"></div>
+            </div>
+        </div>
+
+        <!-- Modal para seleccionar tarjeta o efectivo al guardar cobro -->
+        <div id="modal-seleccionar-tarjeta-cobro" class="modal-overlay" style="display: none;">
+            <div class="modal-content modal-tarjeta">
+                <div class="modal-header">
+                    <h2><i class="fa-solid fa-circle-question"></i> ¿A dónde va este dinero?</h2>
+                    <button type="button" class="btn-cerrar-modal" onclick="cerrarModalSeleccionarTarjeta()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p style="text-align: center; color: #64748b; margin-bottom: 20px; font-weight: 500;">
+                        Selecciona a qué tarjeta o cuenta quieres enviar este monto
+                    </p>
+                    <div id="opciones-tarjetas" class="opciones-tarjetas">
+                        <!-- Se cargarán dinámicamente -->
+                    </div>
+                    <div class="form-group comision-tarjeta-campo">
+                        <label for="input-comision-tarjeta">¿Cuánto cobraron de comisión? ($)</label>
+                        <input type="number" id="input-comision-tarjeta" step="0.01" min="0" placeholder="0.00">
+                    </div>
+                    <div id="mensaje-saldo-insuficiente" class="saldo-insuficiente" hidden role="alert" aria-live="polite">
+                        <div class="saldo-insuficiente-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div>
+                            <strong>No hay dinero suficiente</strong>
+                            <p id="detalle-saldo-insuficiente">Elige otra tarjeta con saldo disponible o cancela este pago.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-cancel" onclick="cerrarModalSeleccionarTarjeta()">Cancelar</button>
+                    <button type="button" class="btn btn-save" onclick="confirmarGuardarCobro()">
+                        <i class="fa-solid fa-check"></i> Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para corregir monto y destino desde el calendario -->
+        <div id="modal-editar-destino-calendario" class="modal-overlay" style="display: none;">
+            <div class="modal-content modal-tarjeta">
+                <div class="modal-header">
+                    <h2><i class="fa-solid fa-wallet"></i> Corregir movimiento</h2>
+                    <button type="button" class="btn-cerrar-modal" onclick="cerrarModalEditarDestinoCalendario()" aria-label="Cerrar corrección">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="input-monto-calendario">Monto correcto ($)</label>
+                        <input type="text" id="input-monto-calendario" inputmode="decimal" placeholder="Ej. 50.50 o 50,50">
+                    </div>
+                    <div class="form-group">
+                        <label for="select-destino-calendario">¿A dónde se mandó el dinero?</label>
+                        <select id="select-destino-calendario">
+                            <option value="">Sin tarjeta de destino</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="grupo-comision-calendario">
+                        <label for="input-comision-calendario">Comisión de tarjeta ($)</label>
+                        <input type="number" id="input-comision-calendario" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-cancel" onclick="cerrarModalEditarDestinoCalendario()">Cancelar</button>
+                    <button type="button" class="btn btn-save" onclick="guardarCorreccionCalendario()">
+                        <i class="fa-solid fa-check"></i> Guardar corrección
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-historial-calendario" class="modal-overlay" hidden>
+            <div class="modal-content historial-modal-card historial-calendario-card" role="dialog" aria-modal="true" aria-labelledby="titulo-historial-calendario">
+                <div class="modal-header">
+                    <h2 id="titulo-historial-calendario"><i class="fa-solid fa-calendar-days"></i> Historial de días trabajados</h2>
+                    <button type="button" id="btn-cerrar-historial-calendario" class="btn-cerrar-modal" aria-label="Cerrar historial de días trabajados">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div id="lista-historial-calendario-completo" class="ganancias-container historial-calendario-lista"></div>
+            </div>
+        </div>
+
+        <div id="modal-retiro-efectivo" class="modal-overlay" hidden>
+            <div class="modal-content modal-tarjeta" role="dialog" aria-modal="true" aria-labelledby="titulo-retiro-efectivo">
+                <div class="modal-header">
+                    <h2 id="titulo-retiro-efectivo"><i class="fa-solid fa-money-bill-transfer"></i> Retirar efectivo</h2>
+                    <button type="button" id="btn-cerrar-retiro-efectivo" class="btn-cerrar-modal" aria-label="Cerrar retiro de efectivo">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="tarjeta-detalle-saldo efectivo-saldo">
+                    <span>Efectivo disponible para retirar</span>
+                    <strong id="detalle-saldo-efectivo">$0.00</strong>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="input-monto-retiro-efectivo">Monto a retirar ($)</label>
+                        <input type="number" id="input-monto-retiro-efectivo" step="0.01" min="0.01" placeholder="Ej. 20.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="input-descripcion-retiro-efectivo">Descripción</label>
+                        <input type="text" id="input-descripcion-retiro-efectivo" placeholder="Ej. Compra, gasto personal..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="input-fecha-hora-retiro-efectivo">Fecha y hora</label>
+                        <input type="datetime-local" id="input-fecha-hora-retiro-efectivo" required>
+                    </div>
+                    <div class="historial-retiros">
+                        <div class="historial-titulo-row">
+                            <h3 class="historial-titulo"><i class="fa-solid fa-clock-rotate-left"></i> Historial de retiros</h3>
+                        </div>
+                        <div id="historial-retiros-efectivo" class="historial-lista"></div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="btn-cancelar-retiro-efectivo" class="btn btn-cancel">Cerrar</button>
+                    <button type="button" id="btn-guardar-retiro-efectivo" class="btn btn-save">
+                        <i class="fa-solid fa-check"></i> Guardar retiro
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-confirmar-retiro-efectivo" class="modal-overlay" hidden>
+            <div class="modal-card retiro-confirmacion-card" role="dialog" aria-modal="true" aria-labelledby="titulo-confirmar-retiro-efectivo">
+                <button type="button" id="btn-cerrar-confirmar-retiro-efectivo" class="modal-close" aria-label="Cerrar confirmación">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div id="mensaje-error-retiro-confirmacion" class="retiro-error-aviso" hidden role="alert">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span id="texto-error-retiro-confirmacion">El retiro no puede ser mayor que el efectivo disponible.</span>
+                </div>
+                <div class="modal-icon modal-icon-retiro"><i class="fa-solid fa-money-bill-transfer"></i></div>
+                <p class="confirmacion-kicker">Confirmar movimiento</p>
+                <h2 id="titulo-confirmar-retiro-efectivo">¿Guardar este retiro?</h2>
+                <p class="confirmacion-texto">Revisa los datos antes de registrar la salida de efectivo.</p>
+                <div class="retiro-confirmacion-datos">
+                    <div><span>Descripción</span><strong id="confirmacion-descripcion-retiro">-</strong></div>
+                    <div class="confirmacion-monto-linea"><span>Monto</span><strong id="confirmacion-monto-retiro">$0.00</strong></div>
+                    <small id="confirmacion-saldo-insuficiente" class="saldo-insuficiente-texto" hidden><i class="fa-solid fa-circle-xmark"></i> <span>Saldo insuficiente para realizar este retiro.</span></small>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="btn-cancelar-confirmar-retiro" class="btn btn-cancel">Cancelar</button>
+                    <button type="button" id="btn-confirmar-retiro-efectivo" class="btn btn-save">
+                        <i class="fa-solid fa-check"></i> Guardar retiro
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulario para agregar / editar -->
+        <section class="form-card">
+            <h2 id="form-title"><i class="fa-solid fa-circle-plus"></i> Registrar Nuevo Movimiento</h2>
+            <div id="mensaje-saldo-retiro-form" class="retiro-error-aviso retiro-error-form" hidden role="alert">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span id="texto-saldo-retiro-form">El retiro no puede ser mayor que el efectivo disponible.</span>
+            </div>
+            <form id="registro-form">
+                <input type="hidden" id="registro-id">
+
+                <div class="form-grid">
+                    <div class="form-group" id="grupo-tipo">
+                        <label for="tipo">Estado del registro</label>
+                        <select id="tipo" required>
+              <option value="cobrado">🟢 Cobro Realizado (Pagado)</option>
+              <option value="pendiente">🔴 Cobro Pendiente (Por cobrar)</option>
+              <option value="prestado">🟠 Dinero que Presté</option>
+              <option value="recibido">🔵 Dinero que me Prestaron</option>
+              <option value="deuda">🟣 Deuda</option>
+                            <option value="retiro_efectivo">💵 Retiro de efectivo</option>
+              <option value="retiro_tarjeta">💳 Retiro por tarjeta</option>
+                              <option value="gasto_mio">🧾 Gastos míos</option>
+                              <option value="gasto_casa">🏠 Gasto de casa</option>
+            </select>
+                    </div>
+
+                    <div class="form-group" id="grupo-tarjeta" style="display: none;">
+                        <label for="tarjeta-destino">Enviar a Tarjeta (para cobros)</label>
+                        <select id="tarjeta-destino">
+              <option value="">-- Seleccionar Tarjeta --</option>
+            </select>
+                    </div>
+
+                    <div class="form-group" id="grupo-fuente-gasto" hidden>
+                        <label for="fuente-gasto">¿De dónde quieres coger el dinero?</label>
+                        <select id="fuente-gasto">
+                            <option value="">-- Seleccionar origen --</option>
+                            <option value="efectivo">💵 Efectivo</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="grupo-cliente">
+                        <label for="cliente">Nombre de la persona / cliente</label>
+                        <input type="text" id="cliente" placeholder="Ej. Juan Pérez" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="monto">Monto en $ USD (usa punto para centavos)</label>
+                        <input type="number" id="monto" step="0.01" min="0" placeholder="Ej. 15.50" required>
+                        <p id="saldo-insuficiente-form" class="saldo-insuficiente-texto" hidden><i class="fa-solid fa-circle-xmark"></i> <span>Saldo insuficiente para realizar este retiro.</span></p>
+                    </div>
+
+                    <div class="form-group" id="grupo-comision-retiro-tarjeta" hidden>
+                        <label for="comision-retiro-tarjeta">Comisión del retiro ($)</label>
+                        <input type="number" id="comision-retiro-tarjeta" step="0.01" min="0" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group" id="grupo-comision-gasto" hidden>
+                        <label for="comision-gasto">¿Cuánto cobraron de comisión? ($)</label>
+                        <input type="number" id="comision-gasto" step="0.01" min="0" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group" id="grupo-comision-cobro" hidden>
+                        <label for="comision-cobro">Comisión del cobro con tarjeta ($)</label>
+                        <input type="number" id="comision-cobro" step="0.01" min="0" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group" id="grupo-fecha">
+                        <label for="fechaHora">Fecha y Hora</label>
+                        <input type="datetime-local" id="fechaHora" required>
+                    </div>
+
+                    <div class="tarjeta-detalle-saldo efectivo-saldo saldo-retiro-form" id="saldo-retiro-form" hidden>
+                        <span>Efectivo disponible</span>
+                        <strong id="saldo-retiro-form-valor">$0.00</strong>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="descripcion">Descripción / Detalle</label>
+                        <input type="text" id="descripcion" placeholder="Ej. Trabajo de mantenimiento, producto X...">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" id="btn-guardar" class="btn btn-save">
+            <i class="fa-solid fa-floppy-disk"></i> Guardar Registro
+          </button>
+                    <button type="button" id="btn-cancelar" class="btn btn-cancel" style="display:none;">
+            <i class="fa-solid fa-xmark"></i> Cancelar Edición
+          </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Tabla de Pendientes -->
+        <section class="table-card table-pending">
+            <div class="table-card-title-row">
+                <h2><i class="fa-solid fa-triangle-exclamation"></i> Pendientes de Pago (Deudas)</h2>
+                <button type="button" class="btn btn-history btn-history-small" data-historial-seccion="pendientes">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Ver historial de registros
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Monto ($)</th>
+                            <th>Descripción</th>
+                            <th>Fecha y Hora</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-pendientes">
+                        <!-- Filas dinámicas -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Tabla de Cobrados -->
+        <section class="table-card table-success">
+            <div class="table-card-title-row">
+                <h2><i class="fa-solid fa-circle-check"></i> Historial de Cobros Realizados</h2>
+                <button type="button" class="btn btn-history btn-history-small" data-historial-seccion="cobrados">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Ver historial de registros
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Monto ($)</th>
+                            <th>Descripción</th>
+                            <th>Fecha y Hora</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-cobrados">
+                        <!-- Filas dinámicas -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Historial independiente de deudas -->
+        <section class="table-card table-debt-pending">
+            <div class="table-card-title-row">
+                <h2><i class="fa-solid fa-file-invoice-dollar"></i> Deudas pendientes</h2>
+                <button type="button" class="btn btn-history btn-history-small" data-historial-seccion="deudas-pendientes">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Ver historial de registros
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Persona / concepto</th>
+                            <th>Monto ($)</th>
+                            <th>Descripción</th>
+                            <th>Fecha y Hora</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-deudas-pendientes"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="table-card table-debt-paid">
+            <div class="table-card-title-row">
+                <h2><i class="fa-solid fa-circle-check"></i> Historial de deudas pagadas</h2>
+                <button type="button" class="btn btn-history btn-history-small" data-historial-seccion="deudas-pagadas">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Ver historial de registros
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Persona / concepto</th>
+                            <th>Monto ($)</th>
+                            <th>Descripción</th>
+                            <th>Fecha y Hora</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-deudas-pagadas"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Tabla de dinero prestado -->
+        <section class="table-card table-loan-out">
+            <div class="table-card-title-row">
+                <h2><i class="fa-solid fa-hand-holding-dollar"></i> Dinero que Presté</h2>
+                <button type="button" class="btn btn-history btn-history-small" data-historial-seccion="prestado">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Ver historial de registros
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Persona</th>
+                            <th>Monto ($)</th>
+                            <th>Descripción</th>
+                            <th>Fecha y Hora</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-prestado"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Tabla de dinero recibido en préstamo -->
+        <section class="table-card table-loan-in">
+            <div class="table-card-title-row">
+                <h2><i class="fa-solid fa-hand-holding-hand"></i> Dinero que me Prestaron</h2>
+                <button type="button" class="btn btn-history btn-history-small" data-historial-seccion="recibido">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Ver historial de registros
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Persona</th>
+                            <th>Monto ($)</th>
+                            <th>Descripción</th>
+                            <th>Fecha y Hora</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-recibido"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="table-card table-loan-in-paid">
+            <div class="table-card-title-row">
+                <h2><i class="fa-solid fa-circle-check"></i> Deudas recibidas pagadas</h2>
+                <button type="button" class="btn btn-history btn-history-small" data-historial-seccion="recibido-pagado">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Ver historial de pagadas
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Persona</th>
+                            <th>Monto ($)</th>
+                            <th>Descripción</th>
+                            <th>Fecha y Hora</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-recibido-pagado"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <div id="modal-historial-registros" class="modal-overlay" hidden>
+            <div class="modal-content historial-modal-card historial-registros-card" role="dialog" aria-modal="true" aria-labelledby="titulo-historial-registros">
+                <div class="modal-header">
+                    <h2 id="titulo-historial-registros"><i class="fa-solid fa-clock-rotate-left"></i> Historial de registros</h2>
+                    <button type="button" id="btn-cerrar-historial-registros" class="btn-cerrar-modal" aria-label="Cerrar historial">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div id="lista-otros-movimientos" class="otros-movimientos-lista"></div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Persona / concepto</th>
+                                <th>Monto ($)</th>
+                                <th>Descripción</th>
+                                <th>Fecha y Hora</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-historial-registros"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-historial-grupo" class="modal-overlay" hidden>
+            <div class="modal-content historial-modal-card historial-grupo-card" role="dialog" aria-modal="true" aria-labelledby="titulo-historial-grupo">
+                <div class="modal-header">
+                    <h2 id="titulo-historial-grupo"><i class="fa-solid fa-clock-rotate-left"></i> Historial</h2>
+                    <button type="button" id="btn-ver-mas-historial-grupo" class="btn btn-history btn-history-small" hidden>Ver más</button>
+                    <button type="button" id="btn-cerrar-historial-grupo" class="btn-cerrar-modal" aria-label="Cerrar historial">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div id="lista-historial-grupo" class="historial-grupo-lista"></div>
+            </div>
+        </div>
+
+        <div id="modal-abono-deuda" class="modal-overlay" hidden>
+            <div class="modal-content abono-deuda-card" role="dialog" aria-modal="true" aria-labelledby="titulo-abono-deuda">
+                <div class="modal-header">
+                    <h2 id="titulo-abono-deuda"><i class="fa-solid fa-money-check-dollar"></i> Abonar a la deuda</h2>
+                    <button type="button" id="btn-cerrar-abono-deuda" class="btn-cerrar-modal" aria-label="Cerrar abono">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="abono-resumen">
+                    <div><span>Total de deuda</span><strong id="abono-total-deuda">$0.00</strong></div>
+                    <div><span>Ya abonado</span><strong id="abono-total-pagado">$0.00</strong></div>
+                    <div class="abono-falta"><span>Falta por pagar</span><strong id="abono-total-falta">$0.00</strong></div>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="input-monto-abono">Monto de este abono ($)</label>
+                        <input type="number" id="input-monto-abono" min="0.01" step="0.01" placeholder="Ej. 25.00">
+                        <p id="mensaje-abono-invalido" class="abono-error" hidden></p>
+                    </div>
+                    <div class="form-group">
+                        <label for="input-descripcion-abono">Descripción del abono</label>
+                        <input type="text" id="input-descripcion-abono" placeholder="Ej. Primera cuota, pago semanal...">
+                    </div>
+                    <div class="form-group">
+                        <label for="input-comision-abono">Comisión de tarjeta ($)</label>
+                        <input type="number" id="input-comision-abono" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="historial-abonos">
+                        <div class="historial-abonos-header">
+                            <h3><i class="fa-solid fa-clock-rotate-left"></i> Últimos abonos</h3>
+                            <button type="button" id="btn-ver-historial-abonos" class="btn btn-history btn-history-small">
+                                <i class="fa-solid fa-expand"></i> Ver historial
+                            </button>
+                        </div>
+                        <div id="lista-abonos-deuda" class="lista-abonos"></div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="btn-cancelar-abono-deuda" class="btn btn-cancel">Cancelar</button>
+                    <button type="button" id="btn-continuar-abono-deuda" class="btn btn-save">
+                        <i class="fa-solid fa-arrow-right"></i> Elegir forma de pago
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-historial-abonos" class="modal-overlay" hidden>
+            <div class="modal-content abono-deuda-card" role="dialog" aria-modal="true" aria-labelledby="titulo-historial-abonos">
+                <div class="modal-header">
+                    <h2 id="titulo-historial-abonos"><i class="fa-solid fa-clock-rotate-left"></i> Historial de abonos</h2>
+                    <button type="button" id="btn-cerrar-historial-abonos" class="btn-cerrar-modal" aria-label="Cerrar historial de abonos">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div id="lista-historial-abonos-completo" class="lista-abonos lista-abonos-completa"></div>
+            </div>
+        </div>
+
+        <section class="cash-history-section gastos-history-section">
+            <div class="cash-history-header">
+                <div>
+                    <p class="section-kicker gastos-section-kicker"><i class="fa-solid fa-receipt"></i> Control de gastos</p>
+                    <h2><i class="fa-solid fa-bag-shopping"></i> Gastos míos</h2>
+                </div>
+                <button type="button" id="btn-ver-historial-gastos" class="btn btn-history btn-history-small">
+                <i class="fa-solid fa-clock-rotate-left"></i> Ver historial
+            </button>
+            </div>
+            <div id="resumen-historial-gastos" class="cash-history-list"></div>
+        </section>
+
+        <section class="cash-history-section gastos-history-section">
+            <div class="cash-history-header">
+                <div>
+                    <p class="section-kicker gastos-section-kicker"><i class="fa-solid fa-house"></i> Control de gastos</p>
+                    <h2><i class="fa-solid fa-house-chimney"></i> Gastos de casa</h2>
+                </div>
+                <button type="button" id="btn-ver-historial-gastos-casa" class="btn btn-history btn-history-small">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Ver historial
+                </button>
+            </div>
+            <div id="resumen-historial-gastos-casa" class="cash-history-list"></div>
+        </section>
+
+    </div>
+
+    <div id="modal-historial-gastos" class="modal-overlay" hidden>
+        <div class="modal-content historial-modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-historial-gastos">
+            <div class="modal-header">
+                <h2 id="titulo-historial-gastos"><i class="fa-solid fa-bag-shopping"></i> Historial de gastos míos</h2>
+                <button type="button" id="btn-ver-mas-historial-gastos" class="btn btn-history btn-history-small" hidden>Ver más</button>
+                <button type="button" id="btn-cerrar-historial-gastos" class="btn-cerrar-modal" aria-label="Cerrar historial de gastos">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="lista-historial-gastos" class="historial-lista historial-lista-completa"></div>
+        </div>
+    </div>
+
+    <div id="modal-historial-gastos-casa" class="modal-overlay" hidden>
+        <div class="modal-content historial-modal-card" role="dialog" aria-modal="true" aria-labelledby="titulo-historial-gastos-casa">
+            <div class="modal-header">
+                <h2 id="titulo-historial-gastos-casa"><i class="fa-solid fa-house-chimney"></i> Historial de gastos de casa</h2>
+                <button type="button" id="btn-ver-mas-historial-gastos-casa" class="btn btn-history btn-history-small" hidden>Ver más</button>
+                <button type="button" id="btn-cerrar-historial-gastos-casa" class="btn-cerrar-modal" aria-label="Cerrar historial de gastos de casa">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="lista-historial-gastos-casa" class="historial-lista historial-lista-completa"></div>
+        </div>
+    </div>
+
+    <div id="modal-eliminar" class="modal-overlay" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+            <button type="button" id="btn-cerrar-modal" class="modal-close" aria-label="Cerrar ventana">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="modal-icon"><i class="fa-solid fa-trash-can"></i></div>
+            <h2 id="modal-titulo">¿Estás seguro de que quieres eliminar este registro?</h2>
+            <p id="modal-mensaje-eliminacion">Esta acción no se puede deshacer.</p>
+            <div class="modal-actions">
+                <button type="button" id="btn-cancelar-eliminacion" class="btn btn-cancel">Cancelar</button>
+                <button type="button" id="btn-confirmar-eliminacion" class="btn btn-delete">
+                    <i class="fa-solid fa-trash"></i> Borrar historial
+                </button>
+                <button type="button" id="btn-confirmar-eliminacion-devolver" class="btn btn-save">
+                    <i class="fa-solid fa-rotate-left"></i> Borrar y devolver dinero
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-cancelar-edicion" class="modal-overlay" hidden>
+        <div class="modal-card modal-cancelar-edicion-card" role="dialog" aria-modal="true" aria-labelledby="titulo-cancelar-edicion">
+            <button type="button" id="btn-cerrar-cancelar-edicion" class="modal-close" aria-label="Cerrar ventana">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="modal-icon modal-icon-cancelar"><i class="fa-solid fa-pen-to-square"></i></div>
+            <h2 id="titulo-cancelar-edicion">¿Cancelar la edición?</h2>
+            <p id="mensaje-cancelar-edicion">Se perderán los cambios que todavía no has guardado.</p>
+            <div class="modal-actions">
+                <button type="button" id="btn-seguir-editando" class="btn btn-cancel">Seguir editando</button>
+                <button type="button" id="btn-confirmar-cancelar-edicion" class="btn btn-delete">
+                    <i class="fa-solid fa-arrow-left"></i> Sí, cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cargar la librería oficial de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
