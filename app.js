@@ -4,11 +4,33 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const TABLA_SUPABASE = 'cobros-pagos';
 const PREFIJO_TIPO = '[tipo:';
 
-let registros = JSON.parse(localStorage.getItem('registros_cobros')) || [];
-let tarjetas = JSON.parse(localStorage.getItem('tarjetas_bancarias')) || [];
-let gananciasSemanales = JSON.parse(localStorage.getItem('ganancias_semanales')) || [];
-let retirosEfectivo = JSON.parse(localStorage.getItem('retiros_efectivo')) || [];
-let gastosMios = JSON.parse(localStorage.getItem('gastos_mios')) || [];
+function leerColeccionLocal(clave) {
+    try {
+        const valor = JSON.parse(localStorage.getItem(clave) || '[]');
+        return Array.isArray(valor) ? valor : [];
+    } catch (error) {
+        console.warn(`Se ignoraron datos locales dañados en ${clave}.`, error);
+        localStorage.removeItem(clave);
+        return [];
+    }
+}
+
+function leerObjetoLocal(clave) {
+    try {
+        const valor = JSON.parse(localStorage.getItem(clave) || '{}');
+        return valor && typeof valor === 'object' && !Array.isArray(valor) ? valor : {};
+    } catch (error) {
+        console.warn(`Se ignoraron preferencias locales dañadas en ${clave}.`, error);
+        localStorage.removeItem(clave);
+        return {};
+    }
+}
+
+let registros = leerColeccionLocal('registros_cobros');
+let tarjetas = leerColeccionLocal('tarjetas_bancarias');
+let gananciasSemanales = leerColeccionLocal('ganancias_semanales');
+let retirosEfectivo = leerColeccionLocal('retiros_efectivo');
+let gastosMios = leerColeccionLocal('gastos_mios');
 
 const form = document.getElementById('registro-form');
 const mensajeSaldoRetiroForm = document.getElementById('mensaje-saldo-retiro-form');
@@ -142,6 +164,7 @@ const modalSeguridadCalendario = document.getElementById('modal-seguridad-calend
 const formSeguridadCalendario = document.getElementById('form-seguridad-calendario');
 const contrasenaCalendarioInput = document.getElementById('contrasena-calendario');
 const mensajeSeguridadCalendario = document.getElementById('mensaje-seguridad-calendario');
+const btnContinuarSeguridadCalendario = formSeguridadCalendario.querySelector('button[type="submit"]');
 const btnCancelarSeguridadCalendario = document.getElementById('btn-cancelar-seguridad-calendario');
 const modalEditarCalendarioVisual = document.getElementById('modal-editar-calendario-visual');
 const btnCerrarEditarCalendarioVisual = document.getElementById('btn-cerrar-editar-calendario-visual');
@@ -258,7 +281,7 @@ function asegurarBaseEdicionRegistro(item) {
         descripcion: item.descripcion || item.cliente || '',
         fechaHora: item.fechaHora || '',
         origen: origenBaseRegistro(item),
-        comisionTarjeta: Number(item.comisionTarjeta ?? item.comision) || 0
+        comisionTarjeta: Number(item.comisionTarjeta ? ? item.comision) || 0
     };
 }
 
@@ -273,12 +296,12 @@ function actualizarEstadoEdicionRegistro(item, origen = origenBaseRegistro(item)
         (item.descripcion || item.cliente || '') !== base.descripcion ||
         (item.fechaHora || '') !== base.fechaHora ||
         origen !== base.origen ||
-        (Number(item.comisionTarjeta ?? item.comision) || 0) !== (Number(base.comisionTarjeta) || 0);
+        (Number(item.comisionTarjeta ? ? item.comision) || 0) !== (Number(base.comisionTarjeta) || 0);
 }
 
 function etiquetaCampoEdicion(item, campo, texto) {
-    if (!item?.baseEdicionRegistro) return '';
-    const actual = campo === 'comision' ? Number(item.comisionTarjeta ?? item.comision) || 0 : Number(item.monto) || 0;
+    if (!item ? .baseEdicionRegistro) return '';
+    const actual = campo === 'comision' ? Number(item.comisionTarjeta ? ? item.comision) || 0 : Number(item.monto) || 0;
     const original = campo === 'comision' ? Number(item.baseEdicionRegistro.comisionTarjeta) || 0 : Number(item.baseEdicionRegistro.monto) || 0;
     const modificado = !item.fijadoContable && actual !== original;
     return `<small class="estado-edicion ${modificado ? 'registro-modificado' : 'registro-original'}">${texto}: ${modificado ? 'Modificado' : 'Original'}</small>`;
@@ -304,6 +327,8 @@ const CLAVE_INTENTOS = 'intentos_acceso_cobros';
 const CLAVE_BLOQUEO = 'bloqueo_acceso_cobros';
 const CLAVE_INTENTOS_RECUPERACION = 'intentos_recuperacion_cobros';
 const CLAVE_BLOQUEO_RECUPERACION = 'bloqueo_recuperacion_cobros';
+const CLAVE_INTENTOS_SEGURIDAD = 'intentos_seguridad_cobros';
+const CLAVE_BLOQUEO_SEGURIDAD = 'bloqueo_seguridad_cobros';
 const CLAVE_TOTAL_GENERAL_OCULTO = 'total_general_cobros_oculto';
 const CLAVE_TOTAL_TARJETAS_OCULTO = 'total_tarjetas_cobros_oculto';
 const CLAVE_EFECTIVO_OCULTO = 'efectivo_cobros_oculto';
@@ -313,12 +338,13 @@ const preferenciaOcultaAntigua = localStorage.getItem(CLAVE_TOTALES_OCULTOS_ANTI
 let totalGeneralOculto = localStorage.getItem(CLAVE_TOTAL_GENERAL_OCULTO) === 'true' || preferenciaOcultaAntigua;
 let totalTarjetasOculto = localStorage.getItem(CLAVE_TOTAL_TARJETAS_OCULTO) === 'true' || preferenciaOcultaAntigua;
 let efectivoOculto = localStorage.getItem(CLAVE_EFECTIVO_OCULTO) === 'true' || preferenciaOcultaAntigua;
-let tarjetasOcultas = JSON.parse(localStorage.getItem('tarjetas_ocultas')) || {};
+let tarjetasOcultas = leerObjetoLocal('tarjetas_ocultas');
 let idPreferenciasVisibilidad = null;
 let contrasenaActual = localStorage.getItem('contrasena_cobros') || CONTRASENA_POR_DEFECTO;
 let codigoRecuperacionVerificado = false;
 let cargaInicialSupabase = null;
 let temporizadorBloqueoRecuperacion = null;
+let temporizadorBloqueoSeguridad = null;
 
 function mostrarAplicacion() {
     pantallaBloqueo.hidden = true;
@@ -428,6 +454,53 @@ function registrarIntentoFallidoRecuperacion() {
     }
 
     mensajeRecuperacion.textContent = `Código incorrecto. Te quedan ${3 - intentos} intentos antes del bloqueo.`;
+}
+
+function obtenerIntentosSeguridad() {
+    return Number(sessionStorage.getItem(CLAVE_INTENTOS_SEGURIDAD)) || 0;
+}
+
+function obtenerBloqueoSeguridadHasta() {
+    return Number(sessionStorage.getItem(CLAVE_BLOQUEO_SEGURIDAD)) || 0;
+}
+
+function actualizarEstadoBloqueoSeguridad() {
+    const tiempoRestante = obtenerBloqueoSeguridadHasta() - Date.now();
+
+    if (tiempoRestante <= 0) {
+        clearInterval(temporizadorBloqueoSeguridad);
+        sessionStorage.removeItem(CLAVE_BLOQUEO_SEGURIDAD);
+        contrasenaCalendarioInput.disabled = false;
+        btnContinuarSeguridadCalendario.disabled = false;
+        mensajeSeguridadCalendario.textContent = '';
+        return;
+    }
+
+    const segundos = Math.ceil(tiempoRestante / 1000);
+    const minutos = Math.floor(segundos / 60);
+    const segundosRestantes = String(segundos % 60).padStart(2, '0');
+    contrasenaCalendarioInput.disabled = true;
+    btnContinuarSeguridadCalendario.disabled = true;
+    mensajeSeguridadCalendario.textContent = `Demasiados intentos. Espera ${minutos}:${segundosRestantes} minutos para volver a intentarlo.`;
+}
+
+function iniciarBloqueoSeguridad(minutos) {
+    sessionStorage.setItem(CLAVE_BLOQUEO_SEGURIDAD, String(Date.now() + minutos * 60 * 1000));
+    actualizarEstadoBloqueoSeguridad();
+    clearInterval(temporizadorBloqueoSeguridad);
+    temporizadorBloqueoSeguridad = setInterval(actualizarEstadoBloqueoSeguridad, 1000);
+}
+
+function registrarIntentoFallidoSeguridad() {
+    const intentos = obtenerIntentosSeguridad() + 1;
+    sessionStorage.setItem(CLAVE_INTENTOS_SEGURIDAD, String(intentos));
+
+    if (intentos > 3) {
+        iniciarBloqueoSeguridad((intentos - 3) * 2);
+        return;
+    }
+
+    mensajeSeguridadCalendario.textContent = `Contraseña incorrecta. Te quedan ${3 - intentos} intentos antes del bloqueo.`;
 }
 
 actualizarEstadoBloqueo();
@@ -564,7 +637,7 @@ function renderTarjetas() {
                     const iconoToggle = estaOculta ? 'fa-eye-slash' : 'fa-eye';
 
                     tarjetaDiv.innerHTML = `
-                <div class="tarjeta-nombre">${tarjeta.nombre}</div>
+                <div class="tarjeta-nombre">${escaparHtml(tarjeta.nombre)}</div>
                 <div class="tarjeta-monto ${estaOculta ? 'oculto' : ''}" id="monto-${tarjeta.id}">
                     ${estaOculta ? '••••••' : `$${tarjeta.monto.toFixed(2)}`}
                 </div>
@@ -631,7 +704,7 @@ function calcularEfectivoDisponible() {
                 .reduce((total, abono) => total + (Number(abono.monto) || 0), 0);
         }
         if (!pagado) return;
-        if (destinoEfectivoContable && (item.tipo === 'cobrado' || item.tipo === 'recibido')) efectivo += montoContable;
+        if (destinoEfectivoContable && (item.tipo === 'cobrado' || item.tipo === 'recibido' || item.tipo === 'ganancia_semanal')) efectivo += montoContable;
         if (origenEfectivoContable && item.tipo !== 'recibido' && !(item.tipo === 'deuda' && item.abonos?.length)) efectivo -= montoContable;
     });
     retirosEfectivo.forEach(retiro => {
@@ -1867,7 +1940,7 @@ function renderAbonosDeuda(deuda, limite = 3, contenedor = listaAbonosDeuda) {
         ? '<p class="historial-vacio">Todavía no hay abonos registrados.</p>'
         : abonosVisibles.map(abono => `
             <div class="abono-item">
-                <div><strong>$${Number(abono.monto).toFixed(2)} ${etiquetaModificacion(abono)}</strong><span>${abono.descripcion || 'Abono'}${Number(abono.comision) > 0 ? ` · Comisión: $${Number(abono.comision).toFixed(2)}` : ''} · ${new Date(abono.fechaHora).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' })}</span></div>
+                    <div><strong>$${Number(abono.monto).toFixed(2)} ${etiquetaModificacion(abono)}</strong><span>${escaparHtml(abono.descripcion || 'Abono')}${Number(abono.comision) > 0 ? ` · Comisión: $${Number(abono.comision).toFixed(2)}` : ''} · ${new Date(abono.fechaHora).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' })}</span></div>
                 <div class="abono-item-final"><span class="abono-metodo">${abono.metodoNombre || 'Sin asignar'}</span><div class="abono-acciones"><button type="button" class="btn-abono-metodo" data-deuda-id="${deuda.id}" data-abono-id="${abono.id}" title="Cambiar método de pago"><i class="fa-solid fa-wallet"></i></button><button type="button" class="btn-abono-editar" data-deuda-id="${deuda.id}" data-abono-id="${abono.id}" title="Editar abono"><i class="fa-solid fa-pen"></i></button><button type="button" class="btn-abono-eliminar" data-deuda-id="${deuda.id}" data-abono-id="${abono.id}" title="Eliminar abono"><i class="fa-solid fa-xmark"></i></button></div></div>
             </div>`).join('');
 }
@@ -2027,9 +2100,16 @@ async function eliminarAbonoDeuda(deudaId, abonoId, autorizado = false) {
     const deuda = registros.find(registro => registro.id === deudaId);
     if (!deuda || !Array.isArray(deuda.abonos)) return;
     if (!window.confirm('¿Eliminar este abono? El saldo pendiente volverá a aumentar.')) return;
-    deuda.abonos = deuda.abonos.filter(abono => abono.id !== abonoId);
+    const abono = deuda.abonos.find(item => item.id === abonoId);
+    if (!abono) return;
+    if (!deuda.fijadoContable) {
+        const tarjeta = tarjetas.find(item => item.id === abono.metodo);
+        if (tarjeta) tarjeta.monto += (Number(abono.monto) || 0) + (Number(abono.comision) || 0);
+    }
+    deuda.abonos = deuda.abonos.filter(item => item.id !== abonoId);
     deuda.estado = obtenerSaldoDeuda(deuda) <= 0.009 ? 'pagado' : 'pendiente';
     await guardarRegistroEnSupabase(deuda);
+    await guardarTarjetas();
     guardarYActualizar();
     if (deudaEnAbono?.id === deuda.id) {
         actualizarResumenAbono(deuda);
@@ -2166,6 +2246,12 @@ function seleccionarOpcionTarjeta(tarjetaId, elemento) {
 function cerrarModalSeleccionarTarjeta() {
     if (registroPendienteDePago) {
         registroPendienteDePago.registro.estado = registroPendienteDePago.estado;
+        if (registroPendienteDePago.tipo !== undefined) {
+            registroPendienteDePago.registro.tipo = registroPendienteDePago.tipo;
+        }
+        if (registroPendienteDePago.fechaHora !== undefined) {
+            registroPendienteDePago.registro.fechaHora = registroPendienteDePago.fechaHora;
+        }
         registroPendienteDePago = null;
         guardarYActualizar();
     }
@@ -2675,6 +2761,22 @@ window.guardarGananciaSemanal = async function(autorizado = false) {
         return;
     }
 
+    if (gananciaEnEdicion) {
+        const estabaPagada = gananciaEnEdicion.estado === 'pagado';
+        const quedaraPagada = estado === 'pagado';
+        const tarjetaAnterior = tarjetas.find(tarjeta => tarjeta.id === gananciaEnEdicion.tarjetaDestinoId);
+
+        if (!estabaPagada && quedaraPagada && !gananciaEnEdicion.tarjetaDestinoId && !gananciaEnEdicion.destinoEfectivo) {
+            alert('Asigna primero una tarjeta o efectivo para marcar esta ganancia como pagada.');
+            return;
+        }
+        if (estabaPagada && tarjetaAnterior) {
+            tarjetaAnterior.monto += quedaraPagada
+                ? (Number(gananciaEnEdicion.monto) || 0) - monto
+                : Number(gananciaEnEdicion.monto) || 0;
+        }
+    }
+
     const nuevaGanancia = {
         id: gananciaEnEdicion ? gananciaEnEdicion.id : undefined,
         tipo: 'ganancia_semanal',
@@ -2691,6 +2793,12 @@ window.guardarGananciaSemanal = async function(autorizado = false) {
         destinoEfectivo: gananciaEnEdicion ? Boolean(gananciaEnEdicion.destinoEfectivo) : false
     };
 
+    if (gananciaEnEdicion && gananciaEnEdicion.estado === 'pagado' && estado !== 'pagado') {
+        nuevaGanancia.tarjetaDestinoId = null;
+        nuevaGanancia.tarjetaDestinoNombre = '';
+        nuevaGanancia.destinoEfectivo = false;
+    }
+
     if (gananciaEnEdicion) {
         nuevaGanancia.baseEdicionRegistro = gananciaEnEdicion.baseEdicionRegistro;
         actualizarEstadoEdicionRegistro(nuevaGanancia);
@@ -2701,6 +2809,7 @@ window.guardarGananciaSemanal = async function(autorizado = false) {
         if (indice !== -1) {
             await guardarRegistroEnSupabase(nuevaGanancia);
             gananciasSemanales[indice] = nuevaGanancia;
+            await guardarTarjetas();
             guardarYActualizar();
             cerrarModalGanancia();
         }
@@ -2946,10 +3055,10 @@ function rellenarOrigenVisualCalendario(item) {
 function solicitarSeguridadCalendario(accion) {
     accionSeguridadCalendario = accion;
     formSeguridadCalendario.reset();
-    mensajeSeguridadCalendario.textContent = '';
+    actualizarEstadoBloqueoSeguridad();
     modalSeguridadCalendario.hidden = false;
     modalSeguridadCalendario.style.display = 'flex';
-    contrasenaCalendarioInput.focus();
+    if (!contrasenaCalendarioInput.disabled) contrasenaCalendarioInput.focus();
 }
 
 function solicitarSeguridadEliminacion(accion) {
@@ -3248,11 +3357,21 @@ modalCalendarioRegistros.addEventListener('click', event => {
 });
 formSeguridadCalendario.addEventListener('submit', async event => {
     event.preventDefault();
-    if (contrasenaCalendarioInput.value !== contrasenaActual) {
-        mensajeSeguridadCalendario.textContent = 'La contraseña no coincide con la contraseña actual.';
-        contrasenaCalendarioInput.select();
+    if (obtenerBloqueoSeguridadHasta() > Date.now()) {
+        actualizarEstadoBloqueoSeguridad();
         return;
     }
+    if (contrasenaCalendarioInput.value !== contrasenaActual) {
+        registrarIntentoFallidoSeguridad();
+        contrasenaCalendarioInput.value = '';
+        if (!obtenerBloqueoSeguridadHasta()) contrasenaCalendarioInput.focus();
+        return;
+    }
+    sessionStorage.removeItem(CLAVE_INTENTOS_SEGURIDAD);
+    sessionStorage.removeItem(CLAVE_BLOQUEO_SEGURIDAD);
+    clearInterval(temporizadorBloqueoSeguridad);
+    contrasenaCalendarioInput.disabled = false;
+    btnContinuarSeguridadCalendario.disabled = false;
     const accion = accionSeguridadCalendario;
     accionSeguridadCalendario = null;
     modalSeguridadCalendario.hidden = true;
@@ -3940,6 +4059,14 @@ async function cargarDatosDesdeSupabase() {
 
     await cargarPreferenciasVisibilidad(data || []);
 
+    const hayTarjetasEnNube = (data || []).some(esTarjetaSupabase);
+    const hayMovimientosEnNube = (data || []).some(item => !esTarjetaSupabase(item) && !esPreferenciaVisibilidadSupabase(item));
+    if (!hayTarjetasEnNube && !hayMovimientosEnNube) {
+        actualizarInterfaz();
+        actualizarVisibilidadTotales();
+        return;
+    }
+
     if (data && data.length > 0) {
       // Parsear los datos usando la función existente para mantener consistencia
             const tarjetasCargadas = data.filter(esTarjetaSupabase).map(tarjetaDesdeSupabase);
@@ -4412,6 +4539,12 @@ function escaparHtml(valor) {
 function marcarComoCobrado(id) {
     const item = registros.find(r => r.id === id);
     if (item) {
+        registroPendienteDePago = {
+            registro: item,
+            tipo: item.tipo,
+            fechaHora: item.fechaHora,
+            estado: item.estado
+        };
         item.tipo = 'cobrado';
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -4636,7 +4769,8 @@ modalEliminar.addEventListener('click', function(e) {
 
 function calcularTotales() {
     const ahora = new Date();
-    const inicioSemana = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - ahora.getDay());
+    const diasDesdeLunes = (ahora.getDay() + 6) % 7;
+    const inicioSemana = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - diasDesdeLunes);
     const finSemana = new Date(inicioSemana.getFullYear(), inicioSemana.getMonth(), inicioSemana.getDate() + 7);
 
     let totalDiario = 0;
@@ -4802,7 +4936,11 @@ window.marcarPrestamoComoPagado = function(id, autorizado = false) {
     mostrarModalSeleccionarTarjeta();
 }
 
-window.marcarRecibidoComoPagado = async function(id) {
+window.marcarRecibidoComoPagado = function(id, autorizado = false) {
+    if (!autorizado) {
+        solicitarSeguridadCalendario(() => window.marcarRecibidoComoPagado(id, true));
+        return;
+    }
     const recibido = registros.find(registro => registro.id === id && registro.tipo === 'recibido');
     if (!recibido || recibido.estado === 'pagado') return;
 
