@@ -281,7 +281,7 @@ function asegurarBaseEdicionRegistro(item) {
         descripcion: item.descripcion || item.cliente || '',
         fechaHora: item.fechaHora || '',
         origen: origenBaseRegistro(item),
-        comisionTarjeta: Number(item.comisionTarjeta ? ? item.comision) || 0
+        comisionTarjeta: Number(item.comisionTarjeta ?? item.comision) || 0
     };
 }
 
@@ -296,12 +296,12 @@ function actualizarEstadoEdicionRegistro(item, origen = origenBaseRegistro(item)
         (item.descripcion || item.cliente || '') !== base.descripcion ||
         (item.fechaHora || '') !== base.fechaHora ||
         origen !== base.origen ||
-        (Number(item.comisionTarjeta ? ? item.comision) || 0) !== (Number(base.comisionTarjeta) || 0);
+        (Number(item.comisionTarjeta ?? item.comision) || 0) !== (Number(base.comisionTarjeta) || 0);
 }
 
 function etiquetaCampoEdicion(item, campo, texto) {
-    if (!item ? .baseEdicionRegistro) return '';
-    const actual = campo === 'comision' ? Number(item.comisionTarjeta ? ? item.comision) || 0 : Number(item.monto) || 0;
+    if (!item?.baseEdicionRegistro) return '';
+    const actual = campo === 'comision' ? Number(item.comisionTarjeta ?? item.comision) || 0 : Number(item.monto) || 0;
     const original = campo === 'comision' ? Number(item.baseEdicionRegistro.comisionTarjeta) || 0 : Number(item.baseEdicionRegistro.monto) || 0;
     const modificado = !item.fijadoContable && actual !== original;
     return `<small class="estado-edicion ${modificado ? 'registro-modificado' : 'registro-original'}">${texto}: ${modificado ? 'Modificado' : 'Original'}</small>`;
@@ -704,7 +704,8 @@ function calcularEfectivoDisponible() {
                 .reduce((total, abono) => total + (Number(abono.monto) || 0), 0);
         }
         if (!pagado) return;
-        if (destinoEfectivoContable && (item.tipo === 'cobrado' || item.tipo === 'recibido' || item.tipo === 'ganancia_semanal')) efectivo += montoContable;
+        if (destinoEfectivoContable && (item.tipo === 'cobrado' || item.tipo === 'recibido' || item.tipo === 'ganancia_semanal') ||
+            origenEfectivoContable && item.tipo === 'recibido') efectivo += montoContable;
         if (origenEfectivoContable && item.tipo !== 'recibido' && !(item.tipo === 'deuda' && item.abonos?.length)) efectivo -= montoContable;
     });
     retirosEfectivo.forEach(retiro => {
@@ -2880,21 +2881,21 @@ function renderGananciasSemanales(mostrarTodos = false, contenedor = tablaGananc
             : ganancia.tipo === 'deuda' && ganancia.origenEfectivo
             ? '<div class="ganancia-destino efectivo"><i class="fa-solid fa-money-bill-wave"></i><span><strong>Deuda pagada en efectivo</strong></span></div>'
             : ganancia.tipo === 'deuda' && ganancia.origenTarjetaId
-            ? `<div class="ganancia-destino"><i class="fa-solid fa-credit-card"></i><span>Deuda pagada con: <strong>${tarjetas.find(tarjeta => tarjeta.id === ganancia.origenTarjetaId)?.nombre || ganancia.origenTarjetaNombre || 'Tarjeta'}</strong></span></div>`
+            ? `<div class="ganancia-destino"><i class="fa-solid fa-credit-card"></i><span>Deuda pagada con: <strong>${escaparHtml(tarjetas.find(tarjeta => tarjeta.id === ganancia.origenTarjetaId)?.nombre || ganancia.origenTarjetaNombre || 'Tarjeta')}</strong></span></div>`
             : ganancia.tipo === 'deuda' && ganancia.estado === 'pagado'
             ? '<div class="ganancia-destino sin-destino"><i class="fa-solid fa-minus-circle"></i><span>Pago sin asignar</span></div>'
             : ganancia.tipo === 'prestado' && ganancia.origenEfectivo
             ? '<div class="ganancia-destino efectivo"><i class="fa-solid fa-money-bill-wave"></i><span><strong>Prestado en efectivo</strong></span></div>'
             : ganancia.tipo === 'prestado' && ganancia.origenTarjetaId
-            ? `<div class="ganancia-destino"><i class="fa-solid fa-credit-card"></i><span>Prestado desde: <strong>${tarjetas.find(tarjeta => tarjeta.id === ganancia.origenTarjetaId)?.nombre || ganancia.origenTarjetaNombre || 'Tarjeta'}</strong></span></div>`
+            ? `<div class="ganancia-destino"><i class="fa-solid fa-credit-card"></i><span>Prestado desde: <strong>${escaparHtml(tarjetas.find(tarjeta => tarjeta.id === ganancia.origenTarjetaId)?.nombre || ganancia.origenTarjetaNombre || 'Tarjeta')}</strong></span></div>`
             : ganancia.tipo === 'recibido' && ganancia.origenEfectivo
             ? '<div class="ganancia-destino efectivo"><i class="fa-solid fa-money-bill-wave"></i><span><strong>Recibido en efectivo</strong></span></div>'
             : ganancia.tipo === 'recibido' && ganancia.origenTarjetaId
-            ? `<div class="ganancia-destino"><i class="fa-solid fa-credit-card"></i><span>Recibido en: <strong>${tarjetas.find(tarjeta => tarjeta.id === ganancia.origenTarjetaId)?.nombre || ganancia.origenTarjetaNombre || 'Tarjeta'}</strong></span></div>`
+            ? `<div class="ganancia-destino"><i class="fa-solid fa-credit-card"></i><span>Recibido en: <strong>${escaparHtml(tarjetas.find(tarjeta => tarjeta.id === ganancia.origenTarjetaId)?.nombre || ganancia.origenTarjetaNombre || 'Tarjeta')}</strong></span></div>`
             : ganancia.destinoEfectivo
             ? '<div class="ganancia-destino efectivo"><i class="fa-solid fa-money-bill-wave"></i><span><strong>Cobrado en efectivo</strong></span></div>'
             : ganancia.tarjetaDestinoId || ganancia.tarjetaDestinoNombre
-            ? `<div class="ganancia-destino"><i class="fa-solid fa-wallet"></i><span>Enviado a: <strong>${tarjetaDestino ? tarjetaDestino.nombre : (ganancia.tarjetaDestinoNombre || 'Tarjeta registrada')}</strong></span></div>`
+            ? `<div class="ganancia-destino"><i class="fa-solid fa-wallet"></i><span>Enviado a: <strong>${escaparHtml(tarjetaDestino ? tarjetaDestino.nombre : (ganancia.tarjetaDestinoNombre || 'Tarjeta registrada'))}</strong></span></div>`
             : '<div class="ganancia-destino sin-destino"><i class="fa-solid fa-clock"></i><span>Sin tarjeta de destino</span></div>';
         const estadoClase = estado === 'pagado' ? 'pagado' : 'pendiente';
         const estadoTexto = ganancia.tipo === 'retiro_efectivo'
@@ -2911,9 +2912,9 @@ function renderGananciasSemanales(mostrarTodos = false, contenedor = tablaGananc
                     const precio = typeof trabajo === 'object' && trabajo.monto !== null && !isNaN(Number(trabajo.monto)) ? ` - $${Number(trabajo.monto).toFixed(2)}` : '';
                     return `${descripcion}${precio}`;
                 }).join(' / ');
-                return `<div><strong>${nombresDias[dia]}:</strong> ${detalles}</div>`;
+                    return `<div><strong>${nombresDias[dia]}:</strong> ${escaparHtml(detalles)}</div>`;
             }).join('')}</div>`
-            : (ganancia.descripcion ? `<div class="ganancia-descripcion">${ganancia.descripcion}</div>` : '');
+            : (ganancia.descripcion ? `<div class="ganancia-descripcion">${escaparHtml(ganancia.descripcion)}</div>` : '');
 
         div.innerHTML = `
             <div class="ganancia-header">
@@ -3276,9 +3277,14 @@ window.guardarCorreccionCalendario = async function() {
     cerrarModalEditarDestinoCalendario();
 }
 
-window.marcarGananciaComoPagada = function(id) {
+window.marcarGananciaComoPagada = function(id, autorizado = false) {
+    if (!autorizado) {
+        solicitarSeguridadCalendario(() => window.marcarGananciaComoPagada(id, true));
+        return;
+    }
     const ganancia = gananciasSemanales.find(g => g.id === id);
     if (ganancia) {
+        registroPendienteDePago = { registro: ganancia, estado: ganancia.estado };
         ganancia.estado = 'pagado';
         registroPendienteDeGuardar = ganancia;
         mostrarModalSeleccionarTarjeta();
@@ -4425,9 +4431,9 @@ function crearFila(item) {
         : '';
 
     tr.innerHTML = `
-    <td><strong>${item.cliente} ${etiquetaModificacion(item)}</strong></td>
+    <td><strong>${escaparHtml(item.cliente)} ${etiquetaModificacion(item)}</strong></td>
     <td style="color: ${colorMonto}; font-weight: 700;">$${montoMostrado.toFixed(2)}</td>
-    <td>${item.descripcion}${estadoPrestamo}${estadoDeuda}${estadoRecibido}${resumenDeuda}<div class="estados-valor-comision">${etiquetaCampoEdicion(item, 'monto', 'Valor')} ${etiquetaCampoEdicion(item, 'comision', 'Comisión')}</div></td>
+    <td>${escaparHtml(item.descripcion)}${estadoPrestamo}${estadoDeuda}${estadoRecibido}${resumenDeuda}<div class="estados-valor-comision">${etiquetaCampoEdicion(item, 'monto', 'Valor')} ${etiquetaCampoEdicion(item, 'comision', 'Comisión')}</div></td>
     <td>${fechaFormateada}</td>
     <td>
       <div class="action-buttons">
@@ -4931,6 +4937,7 @@ window.marcarPrestamoComoPagado = function(id, autorizado = false) {
     const prestamo = registros.find(registro => registro.id === id && registro.tipo === 'prestado');
     if (!prestamo || prestamo.estado === 'pagado') return;
 
+    registroPendienteDePago = { registro: prestamo, estado: prestamo.estado };
     prestamo.estado = 'pagado';
     registroPendienteDeGuardar = prestamo;
     mostrarModalSeleccionarTarjeta();
@@ -4984,5 +4991,10 @@ localStorage.setItem('retiros_efectivo', JSON.stringify(retirosEfectivo));
 localStorage.setItem('gastos_mios', JSON.stringify(gastosMios));
 localStorage.setItem('tarjetas_bancarias', JSON.stringify(tarjetas));
 
-// Iniciar la carga al completar la lectura del DOM
-cargaInicialSupabase = cargarDatosDesdeSupabase();
+// La red no debe impedir el acceso con los datos locales.
+cargaInicialSupabase = Promise.race([
+    cargarDatosDesdeSupabase(),
+    new Promise(resolve => setTimeout(resolve, 5000))
+]).catch(error => {
+    console.error('La carga inicial de Supabase no pudo completarse:', error);
+});
