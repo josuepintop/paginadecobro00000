@@ -282,7 +282,7 @@ function asegurarBaseEdicionRegistro(item) {
         descripcion: item.descripcion || item.cliente || '',
         fechaHora: item.fechaHora || '',
         origen: origenBaseRegistro(item),
-        comisionTarjeta: Number(item.comisionTarjeta ? ? item.comision) || 0
+        comisionTarjeta: Number(item.comisionTarjeta ?? item.comision) || 0
     };
 }
 
@@ -297,12 +297,12 @@ function actualizarEstadoEdicionRegistro(item, origen = origenBaseRegistro(item)
         (item.descripcion || item.cliente || '') !== base.descripcion ||
         (item.fechaHora || '') !== base.fechaHora ||
         origen !== base.origen ||
-        (Number(item.comisionTarjeta ? ? item.comision) || 0) !== (Number(base.comisionTarjeta) || 0);
+        (Number(item.comisionTarjeta ?? item.comision) || 0) !== (Number(base.comisionTarjeta) || 0);
 }
 
 function etiquetaCampoEdicion(item, campo, texto) {
-    if (!item ? .baseEdicionRegistro) return '';
-    const actual = campo === 'comision' ? Number(item.comisionTarjeta ? ? item.comision) || 0 : Number(item.monto) || 0;
+    if (!item?.baseEdicionRegistro) return '';
+    const actual = campo === 'comision' ? Number(item.comisionTarjeta ?? item.comision) || 0 : Number(item.monto) || 0;
     const original = campo === 'comision' ? Number(item.baseEdicionRegistro.comisionTarjeta) || 0 : Number(item.baseEdicionRegistro.monto) || 0;
     const modificado = !item.fijadoContable && actual !== original;
     return `<small class="estado-edicion ${modificado ? 'registro-modificado' : 'registro-original'}">${texto}: ${modificado ? 'Modificado' : 'Original'}</small>`;
@@ -496,8 +496,8 @@ function registrarIntentoFallidoSeguridad() {
     const intentos = obtenerIntentosSeguridad() + 1;
     sessionStorage.setItem(CLAVE_INTENTOS_SEGURIDAD, String(intentos));
 
-    if (intentos > 3) {
-        iniciarBloqueoSeguridad((intentos - 3) * 2);
+    if (intentos >= 3) {
+        iniciarBloqueoSeguridad((intentos - 2) * 2);
         return;
     }
 
