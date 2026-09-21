@@ -7,17 +7,17 @@ function crearConsultaSeguraSupabase() {
     consulta.select = () => consulta;
     consulta.order = () => consulta;
     consulta.eq = () => consulta;
-    consulta.maybeSingle = async () => ({ data: null, error: null });
-    consulta.single = async () => ({ data: null, error: null });
+    consulta.delete = () => consulta;
+    consulta.maybeSingle = async() => ({ data: null, error: null });
+    consulta.single = async() => ({ data: null, error: null });
     return consulta;
 }
 
 const supabaseDisponible = typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function';
-const supabaseClient = supabaseDisponible
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-    : {
+const supabaseClient = supabaseDisponible ?
+    window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : {
         from: () => crearConsultaSeguraSupabase(),
-        auth: { getSession: async () => ({ data: { session: null }, error: null }) }
+        auth: { getSession: async() => ({ data: { session: null }, error: null }) }
     };
 
 if (!supabaseDisponible) {
@@ -2160,7 +2160,9 @@ btnCerrarAbonoDeuda.addEventListener('click', cerrarModalAbonoDeuda);
 btnCancelarAbonoDeuda.addEventListener('click', cerrarModalAbonoDeuda);
 btnContinuarAbonoDeuda.addEventListener('click', continuarAbonoDeuda);
 btnPagoCompletoAbono.addEventListener('click', () => {
-    if (!deudaEnAbono || deudaEnAbono.tipo !== 'pendiente') return;
+    if (!deudaEnAbono) return;
+    const esCobroPendiente = deudaEnAbono.tipo === 'pendiente' || (deudaEnAbono.tipo === 'ganancia_semanal' && deudaEnAbono.estado === 'pendiente');
+    if (!esCobroPendiente) return;
     inputMontoAbono.value = Number(deudaEnAbono.monto).toFixed(2);
     continuarAbonoDeuda();
 });
@@ -2308,12 +2310,14 @@ function cerrarModalSeleccionarTarjeta() {
     registroPendienteDeGuardar = null;
     tarjetaSeleccionadaPendiente = null;
     deudaEnReasignacion = null;
+    pendienteEnCobroParcial = false;
     modoCobrarRecibido = false;
     modoAbonoDeuda = false;
     modoCambioMetodoAbono = false;
     abonoEnCambioMetodo = null;
     deudaEnAbono = null;
     montoAbonoPendiente = 0;
+    btnPagoCompletoAbono.hidden = true;
 }
 
 async function confirmarGuardarCobro() {
@@ -4731,6 +4735,8 @@ function eliminarRegistro(id, autorizado = false) {
 function abrirModalEliminar() {
     eliminacionEnCurso = false;
     devolverDineroAlEliminar = false;
+    btnConfirmarEliminacion.disabled = false;
+    btnConfirmarEliminacionDevolver.disabled = false;
     btnConfirmarEliminacion.hidden = false;
     const movimiento = gastoPendienteDeEliminar || retiroPendienteDeEliminar?.retiro || registroPendienteDeEliminar && registros.find(item => item.id === registroPendienteDeEliminar) || gananciaPendienteDeEliminar;
     const necesitaDevolucion = Boolean(
@@ -4747,6 +4753,8 @@ function abrirModalEliminar() {
 
 function cerrarModalEliminar() {
     eliminacionEnCurso = false;
+    btnConfirmarEliminacion.disabled = false;
+    btnConfirmarEliminacionDevolver.disabled = false;
     modalEliminar.hidden = true;
     registroPendienteDeEliminar = null;
     tarjetaPendienteDeEliminar = null;
@@ -4767,13 +4775,6 @@ async function confirmarEliminacion() {
 
     if (gastoPendienteDeEliminar) {
         const gasto = gastoPendienteDeEliminar;
-        if (!devolverDineroAlEliminar && gasto.origenEfectivo) {
-            gasto.eliminadoSinDevolver = true;
-            await guardarRegistroEnSupabase(gasto);
-            guardarYActualizar();
-            cerrarModalEliminar();
-            return;
-        }
         if (devolverDineroAlEliminar) devolverMontoGastoAlOrigen(gasto);
         gastosMios = gastosMios.filter(item => item.id !== gasto.id);
         guardarYActualizar();
@@ -4786,13 +4787,6 @@ async function confirmarEliminacion() {
     if (gananciaPendienteDeEliminar) {
         const ganancia = gananciaPendienteDeEliminar;
         const id = ganancia.id;
-        if (!devolverDineroAlEliminar && (ganancia.destinoEfectivo || ganancia.tarjetaDestinoId)) {
-            ganancia.eliminadoSinDevolver = true;
-            await guardarRegistroEnSupabase(ganancia);
-            guardarYActualizar();
-            cerrarModalEliminar();
-            return;
-        }
         if (devolverDineroAlEliminar && ganancia.tarjetaDestinoId) {
             const tarjeta = tarjetas.find(item => item.id === ganancia.tarjetaDestinoId);
             if (tarjeta) {
@@ -4802,8 +4796,8 @@ async function confirmarEliminacion() {
         }
         gananciasSemanales = gananciasSemanales.filter(ganancia => ganancia.id !== id);
         localStorage.setItem('ganancias_semanales', JSON.stringify(gananciasSemanales));
-        renderGananciasSemanales();
-        eliminarRegistroDeSupabase(id);
+        actualizarInterfaz();
+        await eliminarRegistroDeSupabase(id);
         cerrarModalEliminar();
         return;
     }
@@ -4811,14 +4805,6 @@ async function confirmarEliminacion() {
     if (retiroPendienteDeEliminar) {
         if (retiroPendienteDeEliminar.efectivo) {
             const retiro = retiroPendienteDeEliminar.retiro;
-            if (!devolverDineroAlEliminar) {
-                retiro.eliminadoSinDevolver = true;
-                await guardarRegistroEnSupabase(retiro);
-                guardarYActualizar();
-                cerrarModalEliminar();
-                if (!modalRetiroEfectivo.hidden) abrirModalRetiroEfectivo();
-                return;
-            }
             const id = retiro.id;
             retirosEfectivo = retirosEfectivo.filter(retiro => retiro.id !== id);
             localStorage.setItem('retiros_efectivo', JSON.stringify(retirosEfectivo));
@@ -4859,13 +4845,6 @@ async function confirmarEliminacion() {
 
     const id = registroPendienteDeEliminar;
     const registro = registros.find(item => item.id === id);
-    if (registro && !devolverDineroAlEliminar && (registro.origenEfectivo || registro.destinoEfectivo)) {
-        registro.eliminadoSinDevolver = true;
-        await guardarRegistroEnSupabase(registro);
-        guardarYActualizar();
-        cerrarModalEliminar();
-        return;
-    }
     if (registro && devolverDineroAlEliminar && (registro.origenTarjetaId || registro.tarjetaDestinoId)) {
         const montoRegistro = Number(registro.monto) || 0;
         const comisionRegistro = Number(registro.comisionTarjeta) || 0;
@@ -4877,14 +4856,18 @@ async function confirmarEliminacion() {
     }
     registros = registros.filter(r => r.id !== id);
     guardarYActualizar();
-    eliminarRegistroDeSupabase(id);
+    await eliminarRegistroDeSupabase(id);
     cerrarModalEliminar();
 }
 
 async function eliminarRegistroDeSupabase(id) {
-    const { error } = await supabaseClient.from(TABLA_SUPABASE).delete().eq('id', id);
-    if (error) {
-        console.error('No se pudo eliminar el registro de Supabase:', error.message);
+    try {
+        const { error } = await supabaseClient.from(TABLA_SUPABASE).delete().eq('id', id);
+        if (error) {
+            console.error('No se pudo eliminar el registro de Supabase:', error.message);
+        }
+    } catch (error) {
+        console.error('No se pudo conectar con Supabase para eliminar el registro:', error);
     }
 }
 
