@@ -303,7 +303,7 @@ function actualizarEstadoEdicionRegistro(item, origen = origenBaseRegistro(item)
 }
 
 function etiquetaCampoEdicion(item, campo, texto) {
-    if (!item ? .baseEdicionRegistro) return '';
+    if (!item || !item.baseEdicionRegistro) return '';
     const actual = campo === 'comision' ? Number(item.comisionTarjeta ? ? item.comision) || 0 : Number(item.monto) || 0;
     const original = campo === 'comision' ? Number(item.baseEdicionRegistro.comisionTarjeta) || 0 : Number(item.baseEdicionRegistro.monto) || 0;
     const modificado = !item.fijadoContable && actual !== original;
@@ -3825,8 +3825,7 @@ function detallesParaSupabase(item) {
         const abonos = Array.isArray(item.abonos) && item.abonos.length > 0
             ? ` [abonos:${encodeURIComponent(JSON.stringify(item.abonos))}]`
             : '';
-        const montoOriginal = Number(item.montoOriginal) > 0 ? ` [montoOriginal:${Number(item.montoOriginal)}]` : '';
-        return `${item.descripcion} [dias:${item.dias.join(',')}] [estado:${item.estado}]${descripciones}${tarjetaDestino}${tarjetaNombre}${efectivo}${comisionTarjeta}${fijado}${visual}${modificado}${baseEdicion}${baseRegistro}${oculto}${abonos}${montoOriginal} ${PREFIJO_TIPO}${item.tipo}]`;
+        return `${item.descripcion} [dias:${item.dias.join(',')}] [estado:${item.estado}]${descripciones}${tarjetaDestino}${tarjetaNombre}${efectivo}${comisionTarjeta}${fijado}${visual}${modificado}${baseEdicion}${baseRegistro}${oculto}${abonos} ${PREFIJO_TIPO}${item.tipo}]`;
     }
     const calendario = item.enCalendario ? ' [calendario:si]' : '';
     const ocultoCalendario = item.ocultoCalendario ? ' [ocultoCalendario:si]' : '';
@@ -3848,9 +3847,8 @@ function detallesParaSupabase(item) {
     const abonos = Array.isArray(item.abonos) && item.abonos.length > 0
         ? ` [abonos:${encodeURIComponent(JSON.stringify(item.abonos))}]`
         : '';
-    const montoOriginal = Number(item.montoOriginal) > 0 ? ` [montoOriginal:${Number(item.montoOriginal)}]` : '';
     const estadoRegistro = item.tipo === 'prestado' || item.tipo === 'deuda' || item.tipo === 'recibido' ? ` [estadoRegistro:${item.estado || 'pendiente'}]` : '';
-    return `${item.descripcion}${calendario}${ocultoCalendario}${eliminadoSinDevolver}${fijado}${modificadoCalendario}${modificadoRegistro}${montoVisualCalendario}${origenVisualCalendario}${baseEdicion}${baseRegistro}${tarjetaDestino}${tarjetaNombre}${efectivo}${origenTarjeta}${origenNombre}${origenEfectivo}${comisionTarjeta}${abonos}${montoOriginal}${estadoRegistro} ${PREFIJO_TIPO}${item.tipo}]`;
+    return `${item.descripcion}${calendario}${ocultoCalendario}${eliminadoSinDevolver}${fijado}${modificadoCalendario}${modificadoRegistro}${montoVisualCalendario}${origenVisualCalendario}${baseEdicion}${baseRegistro}${tarjetaDestino}${tarjetaNombre}${efectivo}${origenTarjeta}${origenNombre}${origenEfectivo}${comisionTarjeta}${abonos}${estadoRegistro} ${PREFIJO_TIPO}${item.tipo}]`;
 }
 
 function registroDesdeSupabase(item) {
