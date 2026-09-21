@@ -1,7 +1,28 @@
 const SUPABASE_URL = 'https://cjoxzhfefrsctlwwjosj.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_mqR7Fu1dGBSq2Ezmb4owVQ_njk2OJ_a';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const TABLA_SUPABASE = 'cobros-pagos';
+
+function crearConsultaSeguraSupabase() {
+    const consulta = Promise.resolve({ data: [], error: null });
+    consulta.select = () => consulta;
+    consulta.order = () => consulta;
+    consulta.eq = () => consulta;
+    consulta.maybeSingle = async () => ({ data: null, error: null });
+    consulta.single = async () => ({ data: null, error: null });
+    return consulta;
+}
+
+const supabaseDisponible = typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function';
+const supabaseClient = supabaseDisponible
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    : {
+        from: () => crearConsultaSeguraSupabase(),
+        auth: { getSession: async () => ({ data: { session: null }, error: null }) }
+    };
+
+if (!supabaseDisponible) {
+    console.warn('Supabase no está disponible; la app seguirá funcionando solo con localStorage.');
+}
 const PREFIJO_TIPO = '[tipo:';
 
 function leerColeccionLocal(clave) {
@@ -284,7 +305,7 @@ function asegurarBaseEdicionRegistro(item) {
         descripcion: item.descripcion || item.cliente || '',
         fechaHora: item.fechaHora || '',
         origen: origenBaseRegistro(item),
-        comisionTarjeta: Number(item.comisionTarjeta ? ? item.comision) || 0
+        comisionTarjeta: Number(item.comisionTarjeta ?? item.comision) || 0
     };
 }
 
@@ -299,12 +320,12 @@ function actualizarEstadoEdicionRegistro(item, origen = origenBaseRegistro(item)
         (item.descripcion || item.cliente || '') !== base.descripcion ||
         (item.fechaHora || '') !== base.fechaHora ||
         origen !== base.origen ||
-        (Number(item.comisionTarjeta ? ? item.comision) || 0) !== (Number(base.comisionTarjeta) || 0);
+        (Number(item.comisionTarjeta ?? item.comision) || 0) !== (Number(base.comisionTarjeta) || 0);
 }
 
 function etiquetaCampoEdicion(item, campo, texto) {
     if (!item || !item.baseEdicionRegistro) return '';
-    const actual = campo === 'comision' ? Number(item.comisionTarjeta ? ? item.comision) || 0 : Number(item.monto) || 0;
+    const actual = campo === 'comision' ? Number(item.comisionTarjeta ?? item.comision) || 0 : Number(item.monto) || 0;
     const original = campo === 'comision' ? Number(item.baseEdicionRegistro.comisionTarjeta) || 0 : Number(item.baseEdicionRegistro.monto) || 0;
     const modificado = !item.fijadoContable && actual !== original;
     return `<small class="estado-edicion ${modificado ? 'registro-modificado' : 'registro-original'}">${texto}: ${modificado ? 'Modificado' : 'Original'}</small>`;
