@@ -209,6 +209,7 @@ const tablaHistorialRegistros = document.getElementById('tabla-historial-registr
 const modalAbonoDeuda = document.getElementById('modal-abono-deuda');
 const btnCerrarAbonoDeuda = document.getElementById('btn-cerrar-abono-deuda');
 const btnCancelarAbonoDeuda = document.getElementById('btn-cancelar-abono-deuda');
+const btnPagoCompletoAbono = document.getElementById('btn-pago-completo-abono');
 const btnContinuarAbonoDeuda = document.getElementById('btn-continuar-abono-deuda');
 const inputMontoAbono = document.getElementById('input-monto-abono');
 const inputDescripcionAbono = document.getElementById('input-descripcion-abono');
@@ -249,6 +250,7 @@ let tarjetaSeleccionadaPendiente = null;
 let modoCobrarRecibido = false;
 let modoAbonoDeuda = false;
 let deudaEnAbono = null;
+let pendienteEnCobroParcial = false;
 let montoAbonoPendiente = 0;
 let abonoEnEdicion = null;
 let deudaHistorialAbonos = null;
@@ -1948,9 +1950,11 @@ function renderAbonosDeuda(deuda, limite = 3, contenedor = listaAbonosDeuda) {
 }
 
 function actualizarResumenAbono(deuda) {
-    abonoTotalDeuda.textContent = `$${Number(deuda.monto).toFixed(2)}`;
+    const esPendiente = deuda.tipo === 'pendiente' || deuda.tipo === 'ganancia_semanal';
+    const total = esPendiente ? Number(deuda.montoOriginal || (Number(deuda.monto) + obtenerTotalAbonado(deuda))) : Number(deuda.monto);
+    abonoTotalDeuda.textContent = `$${total.toFixed(2)}`;
     abonoTotalPagado.textContent = `$${obtenerTotalAbonado(deuda).toFixed(2)}`;
-    abonoTotalFalta.textContent = `$${obtenerSaldoDeuda(deuda).toFixed(2)}`;
+    abonoTotalFalta.textContent = `$${(esPendiente ? Number(deuda.monto) : obtenerSaldoDeuda(deuda)).toFixed(2)}`;
 }
 
 function abrirModalAbonoDeuda(id, autorizado = false) {
@@ -1958,17 +1962,24 @@ function abrirModalAbonoDeuda(id, autorizado = false) {
         solicitarSeguridadCalendario(() => abrirModalAbonoDeuda(id, true));
         return;
     }
-    const deuda = registros.find(registro => registro.id === id && registro.tipo === 'deuda');
-    if (!deuda || obtenerSaldoDeuda(deuda) <= 0.009) return;
+    const deuda = [...registros, ...gananciasSemanales].find(registro => registro.id === id && (registro.tipo === 'deuda' || registro.tipo === 'pendiente' || registro.tipo === 'ganancia_semanal'));
+    const esCobroPendiente = deuda?.tipo === 'pendiente' || deuda?.tipo === 'ganancia_semanal' && deuda.estado === 'pendiente';
+    const saldo = esCobroPendiente ? Number(deuda.monto) : deuda ? obtenerSaldoDeuda(deuda) : 0;
+    if (!deuda || saldo <= 0.009) return;
     deuda.abonos = Array.isArray(deuda.abonos) ? deuda.abonos : [];
     deudaEnAbono = deuda;
     deudaHistorialAbonos = deuda;
+    pendienteEnCobroParcial = esCobroPendiente;
     abonoEnEdicion = null;
     inputMontoAbono.value = '';
     inputDescripcionAbono.value = '';
     inputComisionAbono.value = '';
     mensajeAbonoInvalido.hidden = true;
     btnContinuarAbonoDeuda.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Elegir forma de pago';
+    modalAbonoDeuda.querySelector('#titulo-abono-deuda').innerHTML = pendienteEnCobroParcial
+        ? '<i class="fa-solid fa-hand-holding-dollar"></i> Cobrar una parte o todo'
+        : '<i class="fa-solid fa-money-check-dollar"></i> Abonar a la deuda';
+    btnPagoCompletoAbono.hidden = !pendienteEnCobroParcial;
     actualizarResumenAbono(deuda);
     renderAbonosDeuda(deuda);
     modalAbonoDeuda.hidden = false;
@@ -1982,6 +1993,8 @@ function cerrarModalAbonoDeuda(reiniciar = true) {
     inputComisionAbono.value = '';
     if (reiniciar) {
         deudaEnAbono = null;
+        pendienteEnCobroParcial = false;
+        btnPagoCompletoAbono.hidden = true;
         montoAbonoPendiente = 0;
         abonoEnEdicion = null;
     }
@@ -1990,7 +2003,9 @@ function cerrarModalAbonoDeuda(reiniciar = true) {
 async function continuarAbonoDeuda() {
     if (!deudaEnAbono) return;
     const monto = Number(inputMontoAbono.value);
-    const saldo = obtenerSaldoDeuda(deudaEnAbono) + (abonoEnEdicion ? Number(abonoEnEdicion.monto) : 0);
+    const esCobroPendiente = deudaEnAbono.tipo === 'pendiente' || deudaEnAbono.tipo === 'ganancia_semanal' && deudaEnAbono.estado === 'pendiente';
+    const saldoActual = esCobroPendiente ? Number(deudaEnAbono.monto) : obtenerSaldoDeuda(deudaEnAbono);
+    const saldo = saldoActual + (abonoEnEdicion ? Number(abonoEnEdicion.monto) : 0);
     if (!Number.isFinite(monto) || monto <= 0 || monto > saldo) {
         mensajeAbonoInvalido.textContent = monto > saldo
             ? `El abono no puede superar el saldo pendiente de $${saldo.toFixed(2)}.`
@@ -2123,6 +2138,11 @@ async function eliminarAbonoDeuda(deudaId, abonoId, autorizado = false) {
 btnCerrarAbonoDeuda.addEventListener('click', cerrarModalAbonoDeuda);
 btnCancelarAbonoDeuda.addEventListener('click', cerrarModalAbonoDeuda);
 btnContinuarAbonoDeuda.addEventListener('click', continuarAbonoDeuda);
+btnPagoCompletoAbono.addEventListener('click', () => {
+    if (!deudaEnAbono || deudaEnAbono.tipo !== 'pendiente') return;
+    inputMontoAbono.value = Number(deudaEnAbono.monto).toFixed(2);
+    continuarAbonoDeuda();
+});
 btnVerHistorialAbonos.addEventListener('click', () => abrirHistorialAbonos());
 btnCerrarHistorialAbonos.addEventListener('click', cerrarHistorialAbonos);
 listaAbonosDeuda.addEventListener('click', event => {
@@ -2152,12 +2172,15 @@ function mostrarModalSeleccionarTarjeta() {
     const esDineroPrestado = registroPendienteDeGuardar?.tipo === 'prestado';
     const esDineroRecibido = registroPendienteDeGuardar?.tipo === 'recibido';
     const esDeuda = registroPendienteDeGuardar?.tipo === 'deuda';
+    const esCobroPendiente = registroPendienteDeGuardar?.tipo === 'pendiente' || registroPendienteDeGuardar?.tipo === 'ganancia_semanal' && pendienteEnCobroParcial;
     const esCobroRecibido = esDineroRecibido && modoCobrarRecibido;
     const esAbonoDeuda = esDeuda && modoAbonoDeuda;
     const tituloModal = modalSeleccionarTarjeta.querySelector('.modal-header h2');
     const textoModal = modalSeleccionarTarjeta.querySelector('.modal-body p');
     tituloModal.innerHTML = esAbonoDeuda
         ? '<i class="fa-solid fa-coins"></i> ¿De dónde pagarás este abono?'
+        : esCobroPendiente
+        ? '<i class="fa-solid fa-hand-holding-dollar"></i> ¿Dónde registrarás este cobro?'
         : esCobroRecibido
         ? '<i class="fa-solid fa-hand-holding-dollar"></i> ¿A dónde mandarás el dinero cobrado?'
         : esDeuda
@@ -2169,6 +2192,8 @@ function mostrarModalSeleccionarTarjeta() {
         : '<i class="fa-solid fa-circle-question"></i> ¿A dónde va este dinero?';
     textoModal.textContent = esAbonoDeuda
         ? 'Elige efectivo, una tarjeta o deja este abono sin asignar.'
+        : esCobroPendiente
+        ? 'Selecciona efectivo, una tarjeta o deja el cobro sin asignar.'
         : esCobroRecibido
         ? 'Selecciona si el dinero irá a efectivo, una tarjeta o quedará sin asignar.'
         : esDeuda
@@ -2179,7 +2204,7 @@ function mostrarModalSeleccionarTarjeta() {
         ? 'Elige efectivo, una tarjeta o deja el dinero sin asignar.'
         : 'Selecciona a qué tarjeta o cuenta quieres enviar este monto';
 
-    if (esDeuda || esDineroRecibido) {
+    if (esDeuda || esDineroRecibido || esCobroPendiente) {
         const opcionSinAsignar = document.createElement('div');
         opcionSinAsignar.className = 'opcion-tarjeta';
         opcionSinAsignar.innerHTML = `
@@ -2278,13 +2303,15 @@ async function confirmarGuardarCobro() {
     const esDineroRecibido = nuevoRegistro.tipo === 'recibido';
     const esCobroRecibido = esDineroRecibido && modoCobrarRecibido;
     const esDeuda = nuevoRegistro.tipo === 'deuda';
+    const esCobroPendiente = pendienteEnCobroParcial && (nuevoRegistro.tipo === 'pendiente' || nuevoRegistro.tipo === 'ganancia_semanal');
+    let cobroPendienteCompleto = false;
     const deudaFijada = esDeuda && nuevoRegistro.fijadoContable;
     const esAbonoDeuda = esDeuda && modoAbonoDeuda;
     const esCambioMetodoAbono = esDeuda && modoCambioMetodoAbono && abonoEnCambioMetodo;
     const comision = Number(inputComisionTarjeta.value) || 0;
     const comisionAplicable = tarjetaSeleccionadaPendiente && tarjetaSeleccionadaPendiente !== 'efectivo' && tarjetaSeleccionadaPendiente !== 'sin_asignar' ? comision : 0;
     const saldoAntesDePago = esDeuda ? obtenerSaldoDeuda(nuevoRegistro) : Number(nuevoRegistro.monto);
-    const montoOperacion = esAbonoDeuda
+    const montoOperacion = esAbonoDeuda || esCobroPendiente
         ? montoAbonoPendiente
         : deudaEnReasignacion?.montoPagado || saldoAntesDePago;
     if ((esDineroPrestado || esDineroRecibido || esDeuda) && !tarjetaSeleccionadaPendiente) {
@@ -2321,7 +2348,43 @@ async function confirmarGuardarCobro() {
         cerrarModalSeleccionarTarjeta();
         return;
     }
-    if (esAbonoDeuda) {
+    if (esCobroPendiente) {
+        const saldoPendienteAntes = Number(nuevoRegistro.monto) || 0;
+        const cobroCompleto = montoOperacion >= saldoPendienteAntes - 0.009;
+        cobroPendienteCompleto = cobroCompleto;
+        const metodoNombre = tarjetaSeleccionadaPendiente === 'efectivo'
+            ? 'Efectivo'
+            : tarjetaDestino?.nombre || (tarjetaSeleccionadaPendiente === 'sin_asignar' ? 'Sin asignar' : 'Tarjeta');
+        const abono = {
+            id: Date.now().toString(),
+            monto: montoOperacion,
+            fechaHora: obtenerFechaHoraLocal(),
+            metodo: tarjetaSeleccionadaPendiente,
+            metodoNombre,
+            descripcion: nuevoRegistro.descripcionAbonoPendiente || 'Cobro parcial',
+            comision: comisionAplicable
+        };
+        nuevoRegistro.abonos = Array.isArray(nuevoRegistro.abonos) ? nuevoRegistro.abonos : [];
+        nuevoRegistro.montoOriginal = Number(nuevoRegistro.montoOriginal || (saldoPendienteAntes + obtenerTotalAbonado(nuevoRegistro)));
+        nuevoRegistro.abonos.push(abono);
+        if (cobroCompleto) {
+            nuevoRegistro.estado = 'pagado';
+            if (nuevoRegistro.tipo === 'pendiente') {
+                nuevoRegistro.tipo = 'cobrado';
+                nuevoRegistro.monto = montoOperacion;
+                nuevoRegistro.tarjetaDestinoId = tarjetaDestino ? tarjetaDestino.id : null;
+                nuevoRegistro.tarjetaDestinoNombre = tarjetaDestino ? tarjetaDestino.nombre : '';
+                nuevoRegistro.destinoEfectivo = tarjetaSeleccionadaPendiente === 'efectivo';
+            }
+        } else {
+            nuevoRegistro.monto = Math.max(0, saldoPendienteAntes - montoOperacion);
+            nuevoRegistro.estado = 'pendiente';
+        }
+        delete nuevoRegistro.descripcionAbonoPendiente;
+        delete nuevoRegistro.comisionAbonoPendiente;
+        nuevoRegistro._cobroParcial = !cobroCompleto;
+        nuevoRegistro._abonoCobro = abono;
+    } else if (esAbonoDeuda) {
         nuevoRegistro.abonos = Array.isArray(nuevoRegistro.abonos) ? nuevoRegistro.abonos : [];
         const metodoNombre = tarjetaSeleccionadaPendiente === 'efectivo'
             ? 'Efectivo'
@@ -2395,6 +2458,11 @@ async function confirmarGuardarCobro() {
         }
     }
     
+    const cobroParcial = nuevoRegistro._cobroParcial;
+    const abonoCobro = nuevoRegistro._abonoCobro;
+    delete nuevoRegistro._cobroParcial;
+    delete nuevoRegistro._abonoCobro;
+
     // Si ya tiene ID, es una actualización (de pendiente a pagado)
     if (nuevoRegistro.id) {
         await guardarRegistroEnSupabase(nuevoRegistro);
@@ -2458,12 +2526,37 @@ async function confirmarGuardarCobro() {
             tarjeta.monto -= montoOperacion + comisionAplicable;
             guardarTarjetas();
         }
-    } else if (!deudaFijada && tarjetaSeleccionadaPendiente && !esDeuda) {
+    } else if (!deudaFijada && tarjetaSeleccionadaPendiente && !esDeuda && !cobroParcial && (!esCobroPendiente || cobroPendienteCompleto)) {
         const tarjeta = tarjetas.find(t => t.id === tarjetaSeleccionadaPendiente);
         if (tarjeta) {
             tarjeta.monto += nuevoRegistro.monto - comisionAplicable;
             guardarTarjetas();
         }
+    }
+
+    if (cobroParcial) {
+        const cobroRealizado = {
+            ...nuevoRegistro,
+            id: null,
+            tipo: 'cobrado',
+            monto: abonoCobro.monto,
+            fechaHora: abonoCobro.fechaHora,
+            descripcion: `${nuevoRegistro.descripcion} · ${abonoCobro.descripcion}`,
+            abonos: undefined,
+            montoOriginal: undefined,
+            tarjetaDestinoId: tarjetaDestino ? tarjetaDestino.id : null,
+            tarjetaDestinoNombre: tarjetaDestino ? tarjetaDestino.nombre : '',
+            destinoEfectivo: tarjetaSeleccionadaPendiente === 'efectivo',
+            comisionTarjeta: abonoCobro.comision
+        };
+        const cobroId = await guardarRegistroEnSupabase(cobroRealizado);
+        if (cobroId) {
+            cobroRealizado.id = cobroId;
+            registros.push(cobroRealizado);
+        }
+        const tarjeta = tarjetas.find(t => t.id === tarjetaSeleccionadaPendiente);
+        if (tarjeta) tarjeta.monto += abonoCobro.monto - abonoCobro.comision;
+        await guardarTarjetas();
     }
     
     guardarYActualizar();
@@ -2577,9 +2670,11 @@ function abrirModalGanancia() {
 }
 
 function actualizarSelectorDias() {
-    document.querySelectorAll('.checkbox-dia').forEach(cb => {
-        cb.disabled = false;
-    });
+    const cantidadDias = document.querySelectorAll('.checkbox-dia:checked').length;
+    const puedeEntrelazar = cantidadDias >= 2;
+    checkboxEntrelazarDias.checked = puedeEntrelazar;
+    checkboxEntrelazarDias.disabled = !puedeEntrelazar;
+    document.querySelectorAll('.checkbox-dia').forEach(cb => cb.disabled = false);
 }
 
 checkboxEntrelazarDias.addEventListener('change', function() {
@@ -2928,7 +3023,7 @@ function renderGananciasSemanales(mostrarTodos = false, contenedor = tablaGananc
             <div class="ganancia-body">
                 <div class="ganancia-stat monto">
                     <div class="ganancia-stat-label">Monto Total</div>
-                    <div class="ganancia-stat-value">$${ganancia.monto.toFixed(2)}</div>
+                    <div class="ganancia-stat-value">$${(Number(ganancia.montoOriginal || (Number(ganancia.monto) + obtenerTotalAbonado(ganancia))) || 0).toFixed(2)}</div>
                 </div>
                 <div class="ganancia-stat fecha">
                     <div class="ganancia-stat-label">Fecha y hora</div>
@@ -2966,8 +3061,8 @@ function renderGananciasSemanales(mostrarTodos = false, contenedor = tablaGananc
                 </button>
                 ` : ''}
                 ${estado === 'pendiente' && (esMovimiento ? ganancia.tipo === 'pendiente' : true) ? `
-                <button class="btn-accion btn-pay" onclick="${esMovimiento ? `marcarComoCobrado('${ganancia.id}')` : `marcarGananciaComoPagada('${ganancia.id}')`}">
-                    <i class="fa-solid fa-check"></i> Cobrar
+                <button class="btn-accion btn-pay" onclick="abrirModalAbonoDeuda('${ganancia.id}')" title="Cobrar una parte o todo">
+                    <i class="fa-solid fa-check"></i> Cobrar parte o todo
                 </button>
                 ` : ''}
                 ${!esMovimiento ? `
@@ -3727,7 +3822,11 @@ function detallesParaSupabase(item) {
         const oculto = item.ocultoCalendario ? ' [ocultoCalendario:si]' : '';
         const comisionTarjeta = Number(item.comisionTarjeta) > 0 ? ` [comisionTarjeta:${Number(item.comisionTarjeta)}]` : '';
         const fijado = item.fijadoContable ? ' [fijadoContable:si]' : '';
-        return `${item.descripcion} [dias:${item.dias.join(',')}] [estado:${item.estado}]${descripciones}${tarjetaDestino}${tarjetaNombre}${efectivo}${comisionTarjeta}${fijado}${visual}${modificado}${baseEdicion}${baseRegistro}${oculto} ${PREFIJO_TIPO}${item.tipo}]`;
+        const abonos = Array.isArray(item.abonos) && item.abonos.length > 0
+            ? ` [abonos:${encodeURIComponent(JSON.stringify(item.abonos))}]`
+            : '';
+        const montoOriginal = Number(item.montoOriginal) > 0 ? ` [montoOriginal:${Number(item.montoOriginal)}]` : '';
+        return `${item.descripcion} [dias:${item.dias.join(',')}] [estado:${item.estado}]${descripciones}${tarjetaDestino}${tarjetaNombre}${efectivo}${comisionTarjeta}${fijado}${visual}${modificado}${baseEdicion}${baseRegistro}${oculto}${abonos}${montoOriginal} ${PREFIJO_TIPO}${item.tipo}]`;
     }
     const calendario = item.enCalendario ? ' [calendario:si]' : '';
     const ocultoCalendario = item.ocultoCalendario ? ' [ocultoCalendario:si]' : '';
@@ -3749,8 +3848,9 @@ function detallesParaSupabase(item) {
     const abonos = Array.isArray(item.abonos) && item.abonos.length > 0
         ? ` [abonos:${encodeURIComponent(JSON.stringify(item.abonos))}]`
         : '';
+    const montoOriginal = Number(item.montoOriginal) > 0 ? ` [montoOriginal:${Number(item.montoOriginal)}]` : '';
     const estadoRegistro = item.tipo === 'prestado' || item.tipo === 'deuda' || item.tipo === 'recibido' ? ` [estadoRegistro:${item.estado || 'pendiente'}]` : '';
-    return `${item.descripcion}${calendario}${ocultoCalendario}${eliminadoSinDevolver}${fijado}${modificadoCalendario}${modificadoRegistro}${montoVisualCalendario}${origenVisualCalendario}${baseEdicion}${baseRegistro}${tarjetaDestino}${tarjetaNombre}${efectivo}${origenTarjeta}${origenNombre}${origenEfectivo}${comisionTarjeta}${abonos}${estadoRegistro} ${PREFIJO_TIPO}${item.tipo}]`;
+    return `${item.descripcion}${calendario}${ocultoCalendario}${eliminadoSinDevolver}${fijado}${modificadoCalendario}${modificadoRegistro}${montoVisualCalendario}${origenVisualCalendario}${baseEdicion}${baseRegistro}${tarjetaDestino}${tarjetaNombre}${efectivo}${origenTarjeta}${origenNombre}${origenEfectivo}${comisionTarjeta}${abonos}${montoOriginal}${estadoRegistro} ${PREFIJO_TIPO}${item.tipo}]`;
 }
 
 function registroDesdeSupabase(item) {
@@ -3770,6 +3870,9 @@ function registroDesdeSupabase(item) {
     let origenTarjetaId = null;
     let origenTarjetaNombre = '';
     let abonos = [];
+    const montoOriginalMatch = descripcion.match(/\[montoOriginal:([^\]]+)\]/);
+    const montoOriginal = montoOriginalMatch ? Number(montoOriginalMatch[1]) || null : null;
+    descripcion = descripcion.replace(/\s*\[montoOriginal:[^\]]+\]/, '').trim();
     const origenEfectivo = /\[origenEfectivo:si\]/.test(descripcion);
     descripcion = descripcion.replace(/\s*\[origenEfectivo:si\]/, '').trim();
     const comisionTarjetaMatch = descripcion.match(/\[comisionTarjeta:([^\]]+)\]/);
@@ -3887,7 +3990,8 @@ function registroDesdeSupabase(item) {
         origenTarjetaNombre: origenTarjetaNombre,
         origenEfectivo: origenEfectivo,
         comisionTarjeta: comisionTarjeta,
-        abonos: Array.isArray(abonos) ? abonos : []
+        abonos: Array.isArray(abonos) ? abonos : [],
+        montoOriginal
     };
 }
 
@@ -4438,7 +4542,7 @@ function crearFila(item) {
     <td>${fechaFormateada}</td>
     <td>
       <div class="action-buttons">
-                ${esPendiente ? `<button class="btn btn-pay" onclick="${esGananciaSemanal ? `marcarGananciaComoPagada('${item.id}')` : `marcarComoCobrado('${item.id}')`}" title="Marcar como pagado"><i class="fa-solid fa-check"></i> Cobrar</button>` : ''}
+                ${esPendiente ? `<button class="btn btn-pay" onclick="abrirModalAbonoDeuda('${item.id}')" title="Cobrar una parte o todo"><i class="fa-solid fa-check"></i> Cobrar</button>` : ''}
                 ${esPrestamoPendiente ? `<button class="btn btn-pay" onclick="marcarPrestamoComoPagado('${item.id}')" title="Pagar deuda"><i class="fa-solid fa-check"></i> Pagar deuda</button>` : ''}
                 ${esRecibidoPendiente ? `<button class="btn btn-pay" onclick="marcarRecibidoComoPagado('${item.id}')" title="Cobrar deuda"><i class="fa-solid fa-check"></i> Cobrar deuda</button>` : ''}
                 ${item.tipo === 'recibido' && item.estado === 'pagado' ? '<span class="estado-prestamo pagado">✅ Pagada</span>' : ''}

@@ -327,7 +327,7 @@
                                 <span>Entrelazar días por un precio</span>
                             </label>
                         </div>
-                        <p id="ayuda-entrelazar-dias" class="form-help">Activa esta opción para elegir 2 o más días con un solo monto.</p>
+                        <p id="ayuda-entrelazar-dias" class="form-help">Se activa automáticamente al elegir 2 o más días con un solo monto.</p>
                         <div class="dias-selector">
                             <label class="dia-checkbox">
                                 <input type="checkbox" value="0" class="checkbox-dia"> Lunes
@@ -952,7 +952,7 @@
         <div id="modal-abono-deuda" class="modal-overlay" hidden>
             <div class="modal-content abono-deuda-card" role="dialog" aria-modal="true" aria-labelledby="titulo-abono-deuda">
                 <div class="modal-header">
-                    <h2 id="titulo-abono-deuda"><i class="fa-solid fa-money-check-dollar"></i> Abonar a la deuda</h2>
+                    <h2 id="titulo-abono-deuda"><i class="fa-solid fa-money-check-dollar"></i> Registrar cobro</h2>
                     <button type="button" id="btn-cerrar-abono-deuda" class="btn-cerrar-modal" aria-label="Cerrar abono">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
@@ -964,12 +964,12 @@
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="input-monto-abono">Monto de este abono ($)</label>
+                        <label for="input-monto-abono">Monto de este cobro ($)</label>
                         <input type="number" id="input-monto-abono" min="0.01" step="0.01" placeholder="Ej. 25.00">
                         <p id="mensaje-abono-invalido" class="abono-error" hidden></p>
                     </div>
                     <div class="form-group">
-                        <label for="input-descripcion-abono">Descripción del abono</label>
+                        <label for="input-descripcion-abono">Descripción del cobro</label>
                         <input type="text" id="input-descripcion-abono" placeholder="Ej. Primera cuota, pago semanal...">
                     </div>
                     <div class="form-group">
@@ -988,6 +988,9 @@
                 </div>
                 <div class="modal-actions">
                     <button type="button" id="btn-cancelar-abono-deuda" class="btn btn-cancel">Cancelar</button>
+                    <button type="button" id="btn-pago-completo-abono" class="btn btn-pay">
+                        <i class="fa-solid fa-check-double"></i> Cobrar todo
+                    </button>
                     <button type="button" id="btn-continuar-abono-deuda" class="btn btn-save">
                         <i class="fa-solid fa-arrow-right"></i> Elegir forma de pago
                     </button>
